@@ -25,14 +25,22 @@ class MongoDB:
             
         self.db = self.client[db_name]
         
-        # Verify connection on boot
+        # Verify connection on boot with retries
         if not app.config.get("TESTING"):
-            try:
-                self.client.admin.command("ping")
-                app.logger.info("MongoDB connection verified successfully.")
-            except Exception as e:
-                app.logger.error(f"Failed to connect to MongoDB: {e}")
-                raise e
+            import time
+            max_retries = 10
+            for attempt in range(max_retries):
+                try:
+                    self.client.admin.command("ping")
+                    app.logger.info("MongoDB connection verified successfully.")
+                    break
+                except Exception as e:
+                    app.logger.warning(f"Attempt {attempt + 1}/{max_retries} - Failed to connect to MongoDB: {e}")
+                    if attempt == max_retries - 1:
+                        app.logger.error("Max retries reached. Exiting.")
+                        raise e
+                    time.sleep(3)
+
 
         # Initialize indexes
         self.init_indexes(app)
