@@ -3,6 +3,7 @@ from flask import Flask, jsonify
 from flask_cors import CORS
 from app.config import config_by_name
 from app.extensions import mongo, init_redis
+from app.services.search_service import search_service
 
 def create_app(config_name=None):
     if not config_name:
@@ -17,6 +18,7 @@ def create_app(config_name=None):
     # Initialize Extensions
     mongo.init_app(app)
     init_redis(app)
+    search_service.init_app(app)
     
     # Register Health Check Endpoint
     @app.route("/api/health", methods=["GET"])
