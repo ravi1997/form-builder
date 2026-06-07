@@ -40,7 +40,24 @@ class Tombstones extends Table {
   Set<Column> get primaryKey => {entityType, entityId};
 }
 
-@DriftDatabase(tables: [FormsCache, OfflineResponses, Tombstones])
+class DashboardsCache extends Table {
+  TextColumn get id => text()();
+  TextColumn get orgId => text()();
+  TextColumn get projectId => text()();
+  TextColumn get name => text()();
+  TextColumn get description => text().nullable()();
+  TextColumn get canvasJson => text()();
+  TextColumn get settingsJson => text()();
+  TextColumn get linkedAnalysisIdsJson => text()();
+  BoolColumn get isPublic => boolean().withDefault(const Constant(false))();
+  TextColumn get publicToken => text().nullable()();
+  DateTimeColumn get lastSyncedAt => dateTime().nullable()();
+
+  @override
+  Set<Column> get primaryKey => {id};
+}
+
+@DriftDatabase(tables: [FormsCache, OfflineResponses, Tombstones, DashboardsCache])
 class OfflineDatabase extends _$OfflineDatabase {
   OfflineDatabase([QueryExecutor? e]) : super(e ?? _openConnection());
 

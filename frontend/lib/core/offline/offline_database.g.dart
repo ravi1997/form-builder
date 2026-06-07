@@ -1158,6 +1158,696 @@ class TombstonesCompanion extends UpdateCompanion<Tombstone> {
   }
 }
 
+class $DashboardsCacheTable extends DashboardsCache
+    with TableInfo<$DashboardsCacheTable, DashboardsCacheData> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $DashboardsCacheTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<String> id = GeneratedColumn<String>(
+    'id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _orgIdMeta = const VerificationMeta('orgId');
+  @override
+  late final GeneratedColumn<String> orgId = GeneratedColumn<String>(
+    'org_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _projectIdMeta = const VerificationMeta(
+    'projectId',
+  );
+  @override
+  late final GeneratedColumn<String> projectId = GeneratedColumn<String>(
+    'project_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+    'name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _descriptionMeta = const VerificationMeta(
+    'description',
+  );
+  @override
+  late final GeneratedColumn<String> description = GeneratedColumn<String>(
+    'description',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _canvasJsonMeta = const VerificationMeta(
+    'canvasJson',
+  );
+  @override
+  late final GeneratedColumn<String> canvasJson = GeneratedColumn<String>(
+    'canvas_json',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _settingsJsonMeta = const VerificationMeta(
+    'settingsJson',
+  );
+  @override
+  late final GeneratedColumn<String> settingsJson = GeneratedColumn<String>(
+    'settings_json',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _linkedAnalysisIdsJsonMeta =
+      const VerificationMeta('linkedAnalysisIdsJson');
+  @override
+  late final GeneratedColumn<String> linkedAnalysisIdsJson =
+      GeneratedColumn<String>(
+        'linked_analysis_ids_json',
+        aliasedName,
+        false,
+        type: DriftSqlType.string,
+        requiredDuringInsert: true,
+      );
+  static const VerificationMeta _isPublicMeta = const VerificationMeta(
+    'isPublic',
+  );
+  @override
+  late final GeneratedColumn<bool> isPublic = GeneratedColumn<bool>(
+    'is_public',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_public" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
+  static const VerificationMeta _publicTokenMeta = const VerificationMeta(
+    'publicToken',
+  );
+  @override
+  late final GeneratedColumn<String> publicToken = GeneratedColumn<String>(
+    'public_token',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _lastSyncedAtMeta = const VerificationMeta(
+    'lastSyncedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> lastSyncedAt = GeneratedColumn<DateTime>(
+    'last_synced_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    orgId,
+    projectId,
+    name,
+    description,
+    canvasJson,
+    settingsJson,
+    linkedAnalysisIdsJson,
+    isPublic,
+    publicToken,
+    lastSyncedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'dashboards_cache';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<DashboardsCacheData> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    } else if (isInserting) {
+      context.missing(_idMeta);
+    }
+    if (data.containsKey('org_id')) {
+      context.handle(
+        _orgIdMeta,
+        orgId.isAcceptableOrUnknown(data['org_id']!, _orgIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_orgIdMeta);
+    }
+    if (data.containsKey('project_id')) {
+      context.handle(
+        _projectIdMeta,
+        projectId.isAcceptableOrUnknown(data['project_id']!, _projectIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_projectIdMeta);
+    }
+    if (data.containsKey('name')) {
+      context.handle(
+        _nameMeta,
+        name.isAcceptableOrUnknown(data['name']!, _nameMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_nameMeta);
+    }
+    if (data.containsKey('description')) {
+      context.handle(
+        _descriptionMeta,
+        description.isAcceptableOrUnknown(
+          data['description']!,
+          _descriptionMeta,
+        ),
+      );
+    }
+    if (data.containsKey('canvas_json')) {
+      context.handle(
+        _canvasJsonMeta,
+        canvasJson.isAcceptableOrUnknown(data['canvas_json']!, _canvasJsonMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_canvasJsonMeta);
+    }
+    if (data.containsKey('settings_json')) {
+      context.handle(
+        _settingsJsonMeta,
+        settingsJson.isAcceptableOrUnknown(
+          data['settings_json']!,
+          _settingsJsonMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_settingsJsonMeta);
+    }
+    if (data.containsKey('linked_analysis_ids_json')) {
+      context.handle(
+        _linkedAnalysisIdsJsonMeta,
+        linkedAnalysisIdsJson.isAcceptableOrUnknown(
+          data['linked_analysis_ids_json']!,
+          _linkedAnalysisIdsJsonMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_linkedAnalysisIdsJsonMeta);
+    }
+    if (data.containsKey('is_public')) {
+      context.handle(
+        _isPublicMeta,
+        isPublic.isAcceptableOrUnknown(data['is_public']!, _isPublicMeta),
+      );
+    }
+    if (data.containsKey('public_token')) {
+      context.handle(
+        _publicTokenMeta,
+        publicToken.isAcceptableOrUnknown(
+          data['public_token']!,
+          _publicTokenMeta,
+        ),
+      );
+    }
+    if (data.containsKey('last_synced_at')) {
+      context.handle(
+        _lastSyncedAtMeta,
+        lastSyncedAt.isAcceptableOrUnknown(
+          data['last_synced_at']!,
+          _lastSyncedAtMeta,
+        ),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  DashboardsCacheData map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return DashboardsCacheData(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}id'],
+      )!,
+      orgId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}org_id'],
+      )!,
+      projectId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}project_id'],
+      )!,
+      name: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}name'],
+      )!,
+      description: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}description'],
+      ),
+      canvasJson: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}canvas_json'],
+      )!,
+      settingsJson: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}settings_json'],
+      )!,
+      linkedAnalysisIdsJson: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}linked_analysis_ids_json'],
+      )!,
+      isPublic: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_public'],
+      )!,
+      publicToken: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}public_token'],
+      ),
+      lastSyncedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}last_synced_at'],
+      ),
+    );
+  }
+
+  @override
+  $DashboardsCacheTable createAlias(String alias) {
+    return $DashboardsCacheTable(attachedDatabase, alias);
+  }
+}
+
+class DashboardsCacheData extends DataClass
+    implements Insertable<DashboardsCacheData> {
+  final String id;
+  final String orgId;
+  final String projectId;
+  final String name;
+  final String? description;
+  final String canvasJson;
+  final String settingsJson;
+  final String linkedAnalysisIdsJson;
+  final bool isPublic;
+  final String? publicToken;
+  final DateTime? lastSyncedAt;
+  const DashboardsCacheData({
+    required this.id,
+    required this.orgId,
+    required this.projectId,
+    required this.name,
+    this.description,
+    required this.canvasJson,
+    required this.settingsJson,
+    required this.linkedAnalysisIdsJson,
+    required this.isPublic,
+    this.publicToken,
+    this.lastSyncedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<String>(id);
+    map['org_id'] = Variable<String>(orgId);
+    map['project_id'] = Variable<String>(projectId);
+    map['name'] = Variable<String>(name);
+    if (!nullToAbsent || description != null) {
+      map['description'] = Variable<String>(description);
+    }
+    map['canvas_json'] = Variable<String>(canvasJson);
+    map['settings_json'] = Variable<String>(settingsJson);
+    map['linked_analysis_ids_json'] = Variable<String>(linkedAnalysisIdsJson);
+    map['is_public'] = Variable<bool>(isPublic);
+    if (!nullToAbsent || publicToken != null) {
+      map['public_token'] = Variable<String>(publicToken);
+    }
+    if (!nullToAbsent || lastSyncedAt != null) {
+      map['last_synced_at'] = Variable<DateTime>(lastSyncedAt);
+    }
+    return map;
+  }
+
+  DashboardsCacheCompanion toCompanion(bool nullToAbsent) {
+    return DashboardsCacheCompanion(
+      id: Value(id),
+      orgId: Value(orgId),
+      projectId: Value(projectId),
+      name: Value(name),
+      description: description == null && nullToAbsent
+          ? const Value.absent()
+          : Value(description),
+      canvasJson: Value(canvasJson),
+      settingsJson: Value(settingsJson),
+      linkedAnalysisIdsJson: Value(linkedAnalysisIdsJson),
+      isPublic: Value(isPublic),
+      publicToken: publicToken == null && nullToAbsent
+          ? const Value.absent()
+          : Value(publicToken),
+      lastSyncedAt: lastSyncedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastSyncedAt),
+    );
+  }
+
+  factory DashboardsCacheData.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return DashboardsCacheData(
+      id: serializer.fromJson<String>(json['id']),
+      orgId: serializer.fromJson<String>(json['orgId']),
+      projectId: serializer.fromJson<String>(json['projectId']),
+      name: serializer.fromJson<String>(json['name']),
+      description: serializer.fromJson<String?>(json['description']),
+      canvasJson: serializer.fromJson<String>(json['canvasJson']),
+      settingsJson: serializer.fromJson<String>(json['settingsJson']),
+      linkedAnalysisIdsJson: serializer.fromJson<String>(
+        json['linkedAnalysisIdsJson'],
+      ),
+      isPublic: serializer.fromJson<bool>(json['isPublic']),
+      publicToken: serializer.fromJson<String?>(json['publicToken']),
+      lastSyncedAt: serializer.fromJson<DateTime?>(json['lastSyncedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<String>(id),
+      'orgId': serializer.toJson<String>(orgId),
+      'projectId': serializer.toJson<String>(projectId),
+      'name': serializer.toJson<String>(name),
+      'description': serializer.toJson<String?>(description),
+      'canvasJson': serializer.toJson<String>(canvasJson),
+      'settingsJson': serializer.toJson<String>(settingsJson),
+      'linkedAnalysisIdsJson': serializer.toJson<String>(linkedAnalysisIdsJson),
+      'isPublic': serializer.toJson<bool>(isPublic),
+      'publicToken': serializer.toJson<String?>(publicToken),
+      'lastSyncedAt': serializer.toJson<DateTime?>(lastSyncedAt),
+    };
+  }
+
+  DashboardsCacheData copyWith({
+    String? id,
+    String? orgId,
+    String? projectId,
+    String? name,
+    Value<String?> description = const Value.absent(),
+    String? canvasJson,
+    String? settingsJson,
+    String? linkedAnalysisIdsJson,
+    bool? isPublic,
+    Value<String?> publicToken = const Value.absent(),
+    Value<DateTime?> lastSyncedAt = const Value.absent(),
+  }) => DashboardsCacheData(
+    id: id ?? this.id,
+    orgId: orgId ?? this.orgId,
+    projectId: projectId ?? this.projectId,
+    name: name ?? this.name,
+    description: description.present ? description.value : this.description,
+    canvasJson: canvasJson ?? this.canvasJson,
+    settingsJson: settingsJson ?? this.settingsJson,
+    linkedAnalysisIdsJson: linkedAnalysisIdsJson ?? this.linkedAnalysisIdsJson,
+    isPublic: isPublic ?? this.isPublic,
+    publicToken: publicToken.present ? publicToken.value : this.publicToken,
+    lastSyncedAt: lastSyncedAt.present ? lastSyncedAt.value : this.lastSyncedAt,
+  );
+  DashboardsCacheData copyWithCompanion(DashboardsCacheCompanion data) {
+    return DashboardsCacheData(
+      id: data.id.present ? data.id.value : this.id,
+      orgId: data.orgId.present ? data.orgId.value : this.orgId,
+      projectId: data.projectId.present ? data.projectId.value : this.projectId,
+      name: data.name.present ? data.name.value : this.name,
+      description: data.description.present
+          ? data.description.value
+          : this.description,
+      canvasJson: data.canvasJson.present
+          ? data.canvasJson.value
+          : this.canvasJson,
+      settingsJson: data.settingsJson.present
+          ? data.settingsJson.value
+          : this.settingsJson,
+      linkedAnalysisIdsJson: data.linkedAnalysisIdsJson.present
+          ? data.linkedAnalysisIdsJson.value
+          : this.linkedAnalysisIdsJson,
+      isPublic: data.isPublic.present ? data.isPublic.value : this.isPublic,
+      publicToken: data.publicToken.present
+          ? data.publicToken.value
+          : this.publicToken,
+      lastSyncedAt: data.lastSyncedAt.present
+          ? data.lastSyncedAt.value
+          : this.lastSyncedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('DashboardsCacheData(')
+          ..write('id: $id, ')
+          ..write('orgId: $orgId, ')
+          ..write('projectId: $projectId, ')
+          ..write('name: $name, ')
+          ..write('description: $description, ')
+          ..write('canvasJson: $canvasJson, ')
+          ..write('settingsJson: $settingsJson, ')
+          ..write('linkedAnalysisIdsJson: $linkedAnalysisIdsJson, ')
+          ..write('isPublic: $isPublic, ')
+          ..write('publicToken: $publicToken, ')
+          ..write('lastSyncedAt: $lastSyncedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    orgId,
+    projectId,
+    name,
+    description,
+    canvasJson,
+    settingsJson,
+    linkedAnalysisIdsJson,
+    isPublic,
+    publicToken,
+    lastSyncedAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is DashboardsCacheData &&
+          other.id == this.id &&
+          other.orgId == this.orgId &&
+          other.projectId == this.projectId &&
+          other.name == this.name &&
+          other.description == this.description &&
+          other.canvasJson == this.canvasJson &&
+          other.settingsJson == this.settingsJson &&
+          other.linkedAnalysisIdsJson == this.linkedAnalysisIdsJson &&
+          other.isPublic == this.isPublic &&
+          other.publicToken == this.publicToken &&
+          other.lastSyncedAt == this.lastSyncedAt);
+}
+
+class DashboardsCacheCompanion extends UpdateCompanion<DashboardsCacheData> {
+  final Value<String> id;
+  final Value<String> orgId;
+  final Value<String> projectId;
+  final Value<String> name;
+  final Value<String?> description;
+  final Value<String> canvasJson;
+  final Value<String> settingsJson;
+  final Value<String> linkedAnalysisIdsJson;
+  final Value<bool> isPublic;
+  final Value<String?> publicToken;
+  final Value<DateTime?> lastSyncedAt;
+  final Value<int> rowid;
+  const DashboardsCacheCompanion({
+    this.id = const Value.absent(),
+    this.orgId = const Value.absent(),
+    this.projectId = const Value.absent(),
+    this.name = const Value.absent(),
+    this.description = const Value.absent(),
+    this.canvasJson = const Value.absent(),
+    this.settingsJson = const Value.absent(),
+    this.linkedAnalysisIdsJson = const Value.absent(),
+    this.isPublic = const Value.absent(),
+    this.publicToken = const Value.absent(),
+    this.lastSyncedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  DashboardsCacheCompanion.insert({
+    required String id,
+    required String orgId,
+    required String projectId,
+    required String name,
+    this.description = const Value.absent(),
+    required String canvasJson,
+    required String settingsJson,
+    required String linkedAnalysisIdsJson,
+    this.isPublic = const Value.absent(),
+    this.publicToken = const Value.absent(),
+    this.lastSyncedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : id = Value(id),
+       orgId = Value(orgId),
+       projectId = Value(projectId),
+       name = Value(name),
+       canvasJson = Value(canvasJson),
+       settingsJson = Value(settingsJson),
+       linkedAnalysisIdsJson = Value(linkedAnalysisIdsJson);
+  static Insertable<DashboardsCacheData> custom({
+    Expression<String>? id,
+    Expression<String>? orgId,
+    Expression<String>? projectId,
+    Expression<String>? name,
+    Expression<String>? description,
+    Expression<String>? canvasJson,
+    Expression<String>? settingsJson,
+    Expression<String>? linkedAnalysisIdsJson,
+    Expression<bool>? isPublic,
+    Expression<String>? publicToken,
+    Expression<DateTime>? lastSyncedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (orgId != null) 'org_id': orgId,
+      if (projectId != null) 'project_id': projectId,
+      if (name != null) 'name': name,
+      if (description != null) 'description': description,
+      if (canvasJson != null) 'canvas_json': canvasJson,
+      if (settingsJson != null) 'settings_json': settingsJson,
+      if (linkedAnalysisIdsJson != null)
+        'linked_analysis_ids_json': linkedAnalysisIdsJson,
+      if (isPublic != null) 'is_public': isPublic,
+      if (publicToken != null) 'public_token': publicToken,
+      if (lastSyncedAt != null) 'last_synced_at': lastSyncedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  DashboardsCacheCompanion copyWith({
+    Value<String>? id,
+    Value<String>? orgId,
+    Value<String>? projectId,
+    Value<String>? name,
+    Value<String?>? description,
+    Value<String>? canvasJson,
+    Value<String>? settingsJson,
+    Value<String>? linkedAnalysisIdsJson,
+    Value<bool>? isPublic,
+    Value<String?>? publicToken,
+    Value<DateTime?>? lastSyncedAt,
+    Value<int>? rowid,
+  }) {
+    return DashboardsCacheCompanion(
+      id: id ?? this.id,
+      orgId: orgId ?? this.orgId,
+      projectId: projectId ?? this.projectId,
+      name: name ?? this.name,
+      description: description ?? this.description,
+      canvasJson: canvasJson ?? this.canvasJson,
+      settingsJson: settingsJson ?? this.settingsJson,
+      linkedAnalysisIdsJson:
+          linkedAnalysisIdsJson ?? this.linkedAnalysisIdsJson,
+      isPublic: isPublic ?? this.isPublic,
+      publicToken: publicToken ?? this.publicToken,
+      lastSyncedAt: lastSyncedAt ?? this.lastSyncedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<String>(id.value);
+    }
+    if (orgId.present) {
+      map['org_id'] = Variable<String>(orgId.value);
+    }
+    if (projectId.present) {
+      map['project_id'] = Variable<String>(projectId.value);
+    }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (description.present) {
+      map['description'] = Variable<String>(description.value);
+    }
+    if (canvasJson.present) {
+      map['canvas_json'] = Variable<String>(canvasJson.value);
+    }
+    if (settingsJson.present) {
+      map['settings_json'] = Variable<String>(settingsJson.value);
+    }
+    if (linkedAnalysisIdsJson.present) {
+      map['linked_analysis_ids_json'] = Variable<String>(
+        linkedAnalysisIdsJson.value,
+      );
+    }
+    if (isPublic.present) {
+      map['is_public'] = Variable<bool>(isPublic.value);
+    }
+    if (publicToken.present) {
+      map['public_token'] = Variable<String>(publicToken.value);
+    }
+    if (lastSyncedAt.present) {
+      map['last_synced_at'] = Variable<DateTime>(lastSyncedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('DashboardsCacheCompanion(')
+          ..write('id: $id, ')
+          ..write('orgId: $orgId, ')
+          ..write('projectId: $projectId, ')
+          ..write('name: $name, ')
+          ..write('description: $description, ')
+          ..write('canvasJson: $canvasJson, ')
+          ..write('settingsJson: $settingsJson, ')
+          ..write('linkedAnalysisIdsJson: $linkedAnalysisIdsJson, ')
+          ..write('isPublic: $isPublic, ')
+          ..write('publicToken: $publicToken, ')
+          ..write('lastSyncedAt: $lastSyncedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$OfflineDatabase extends GeneratedDatabase {
   _$OfflineDatabase(QueryExecutor e) : super(e);
   $OfflineDatabaseManager get managers => $OfflineDatabaseManager(this);
@@ -1166,6 +1856,9 @@ abstract class _$OfflineDatabase extends GeneratedDatabase {
     this,
   );
   late final $TombstonesTable tombstones = $TombstonesTable(this);
+  late final $DashboardsCacheTable dashboardsCache = $DashboardsCacheTable(
+    this,
+  );
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -1174,6 +1867,7 @@ abstract class _$OfflineDatabase extends GeneratedDatabase {
     formsCache,
     offlineResponses,
     tombstones,
+    dashboardsCache,
   ];
 }
 
@@ -1816,6 +2510,342 @@ typedef $$TombstonesTableProcessedTableManager =
       Tombstone,
       PrefetchHooks Function()
     >;
+typedef $$DashboardsCacheTableCreateCompanionBuilder =
+    DashboardsCacheCompanion Function({
+      required String id,
+      required String orgId,
+      required String projectId,
+      required String name,
+      Value<String?> description,
+      required String canvasJson,
+      required String settingsJson,
+      required String linkedAnalysisIdsJson,
+      Value<bool> isPublic,
+      Value<String?> publicToken,
+      Value<DateTime?> lastSyncedAt,
+      Value<int> rowid,
+    });
+typedef $$DashboardsCacheTableUpdateCompanionBuilder =
+    DashboardsCacheCompanion Function({
+      Value<String> id,
+      Value<String> orgId,
+      Value<String> projectId,
+      Value<String> name,
+      Value<String?> description,
+      Value<String> canvasJson,
+      Value<String> settingsJson,
+      Value<String> linkedAnalysisIdsJson,
+      Value<bool> isPublic,
+      Value<String?> publicToken,
+      Value<DateTime?> lastSyncedAt,
+      Value<int> rowid,
+    });
+
+class $$DashboardsCacheTableFilterComposer
+    extends Composer<_$OfflineDatabase, $DashboardsCacheTable> {
+  $$DashboardsCacheTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get orgId => $composableBuilder(
+    column: $table.orgId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get projectId => $composableBuilder(
+    column: $table.projectId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get description => $composableBuilder(
+    column: $table.description,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get canvasJson => $composableBuilder(
+    column: $table.canvasJson,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get settingsJson => $composableBuilder(
+    column: $table.settingsJson,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get linkedAnalysisIdsJson => $composableBuilder(
+    column: $table.linkedAnalysisIdsJson,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isPublic => $composableBuilder(
+    column: $table.isPublic,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get publicToken => $composableBuilder(
+    column: $table.publicToken,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get lastSyncedAt => $composableBuilder(
+    column: $table.lastSyncedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$DashboardsCacheTableOrderingComposer
+    extends Composer<_$OfflineDatabase, $DashboardsCacheTable> {
+  $$DashboardsCacheTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get orgId => $composableBuilder(
+    column: $table.orgId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get projectId => $composableBuilder(
+    column: $table.projectId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get description => $composableBuilder(
+    column: $table.description,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get canvasJson => $composableBuilder(
+    column: $table.canvasJson,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get settingsJson => $composableBuilder(
+    column: $table.settingsJson,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get linkedAnalysisIdsJson => $composableBuilder(
+    column: $table.linkedAnalysisIdsJson,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get isPublic => $composableBuilder(
+    column: $table.isPublic,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get publicToken => $composableBuilder(
+    column: $table.publicToken,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get lastSyncedAt => $composableBuilder(
+    column: $table.lastSyncedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$DashboardsCacheTableAnnotationComposer
+    extends Composer<_$OfflineDatabase, $DashboardsCacheTable> {
+  $$DashboardsCacheTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get orgId =>
+      $composableBuilder(column: $table.orgId, builder: (column) => column);
+
+  GeneratedColumn<String> get projectId =>
+      $composableBuilder(column: $table.projectId, builder: (column) => column);
+
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<String> get description => $composableBuilder(
+    column: $table.description,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get canvasJson => $composableBuilder(
+    column: $table.canvasJson,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get settingsJson => $composableBuilder(
+    column: $table.settingsJson,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get linkedAnalysisIdsJson => $composableBuilder(
+    column: $table.linkedAnalysisIdsJson,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get isPublic =>
+      $composableBuilder(column: $table.isPublic, builder: (column) => column);
+
+  GeneratedColumn<String> get publicToken => $composableBuilder(
+    column: $table.publicToken,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get lastSyncedAt => $composableBuilder(
+    column: $table.lastSyncedAt,
+    builder: (column) => column,
+  );
+}
+
+class $$DashboardsCacheTableTableManager
+    extends
+        RootTableManager<
+          _$OfflineDatabase,
+          $DashboardsCacheTable,
+          DashboardsCacheData,
+          $$DashboardsCacheTableFilterComposer,
+          $$DashboardsCacheTableOrderingComposer,
+          $$DashboardsCacheTableAnnotationComposer,
+          $$DashboardsCacheTableCreateCompanionBuilder,
+          $$DashboardsCacheTableUpdateCompanionBuilder,
+          (
+            DashboardsCacheData,
+            BaseReferences<
+              _$OfflineDatabase,
+              $DashboardsCacheTable,
+              DashboardsCacheData
+            >,
+          ),
+          DashboardsCacheData,
+          PrefetchHooks Function()
+        > {
+  $$DashboardsCacheTableTableManager(
+    _$OfflineDatabase db,
+    $DashboardsCacheTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$DashboardsCacheTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$DashboardsCacheTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$DashboardsCacheTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> id = const Value.absent(),
+                Value<String> orgId = const Value.absent(),
+                Value<String> projectId = const Value.absent(),
+                Value<String> name = const Value.absent(),
+                Value<String?> description = const Value.absent(),
+                Value<String> canvasJson = const Value.absent(),
+                Value<String> settingsJson = const Value.absent(),
+                Value<String> linkedAnalysisIdsJson = const Value.absent(),
+                Value<bool> isPublic = const Value.absent(),
+                Value<String?> publicToken = const Value.absent(),
+                Value<DateTime?> lastSyncedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => DashboardsCacheCompanion(
+                id: id,
+                orgId: orgId,
+                projectId: projectId,
+                name: name,
+                description: description,
+                canvasJson: canvasJson,
+                settingsJson: settingsJson,
+                linkedAnalysisIdsJson: linkedAnalysisIdsJson,
+                isPublic: isPublic,
+                publicToken: publicToken,
+                lastSyncedAt: lastSyncedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String id,
+                required String orgId,
+                required String projectId,
+                required String name,
+                Value<String?> description = const Value.absent(),
+                required String canvasJson,
+                required String settingsJson,
+                required String linkedAnalysisIdsJson,
+                Value<bool> isPublic = const Value.absent(),
+                Value<String?> publicToken = const Value.absent(),
+                Value<DateTime?> lastSyncedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => DashboardsCacheCompanion.insert(
+                id: id,
+                orgId: orgId,
+                projectId: projectId,
+                name: name,
+                description: description,
+                canvasJson: canvasJson,
+                settingsJson: settingsJson,
+                linkedAnalysisIdsJson: linkedAnalysisIdsJson,
+                isPublic: isPublic,
+                publicToken: publicToken,
+                lastSyncedAt: lastSyncedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$DashboardsCacheTableProcessedTableManager =
+    ProcessedTableManager<
+      _$OfflineDatabase,
+      $DashboardsCacheTable,
+      DashboardsCacheData,
+      $$DashboardsCacheTableFilterComposer,
+      $$DashboardsCacheTableOrderingComposer,
+      $$DashboardsCacheTableAnnotationComposer,
+      $$DashboardsCacheTableCreateCompanionBuilder,
+      $$DashboardsCacheTableUpdateCompanionBuilder,
+      (
+        DashboardsCacheData,
+        BaseReferences<
+          _$OfflineDatabase,
+          $DashboardsCacheTable,
+          DashboardsCacheData
+        >,
+      ),
+      DashboardsCacheData,
+      PrefetchHooks Function()
+    >;
 
 class $OfflineDatabaseManager {
   final _$OfflineDatabase _db;
@@ -1826,4 +2856,6 @@ class $OfflineDatabaseManager {
       $$OfflineResponsesTableTableManager(_db, _db.offlineResponses);
   $$TombstonesTableTableManager get tombstones =>
       $$TombstonesTableTableManager(_db, _db.tombstones);
+  $$DashboardsCacheTableTableManager get dashboardsCache =>
+      $$DashboardsCacheTableTableManager(_db, _db.dashboardsCache);
 }
