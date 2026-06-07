@@ -1,0 +1,76 @@
+version: '3.8'
+
+services:
+  nginx:
+    image: nginx:latest
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/certs:/etc/nginx/certs:ro
+      - upload_volume:/var/www/uploads:ro
+      - web_static_volume:/var/www/html:ro
+    depends_on:
+      - backend
+
+  backend:
+    build:
+      context: ../backend
+      dockerfile: ../docker/backend/Dockerfile
+    ports:
+      - "5000:5000"
+    environment:
+      - MONGO_URI=mongodb://mongo:27017/form_builder
+      - REDIS_URI=redis://redis:6379/0
+      - ELASTICSEARCH_URI=http://elasticsearch:9200
+      - FLASK_ENV=development
+    volumes:
+      - upload_volume:/app/uploads
+    depends_on:
+      - mongo
+      - redis
+      - elasticsearch
+
+  celery_worker:
+    build:
+      context: ../backend
+      dockerfile: ../docker/backend/Dockerfile
+    command: celery -A app.wsgi.celery worker --loglevel=info
+    environment:
+      - MONGO_URI=mongodb://mongo:27017/form_builder
+      - REDIS_URI=redis://redis:6379/0
+      - ELASTICSEARCH_URI=http://elasticsearch:9200
+    volumes:
+      - upload_volume:/app/uploads
+    depends_on:
+      - redis
+      - mongo
+
+  mongo:
+    image: mongo:7.0
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+
+  redis:
+    image: redis:7.0-alpine
+    ports:
+      - "6379:6379"
+
+  elasticsearch:
+    image: elasticsearch:8.11.1
+    ports:
+      - "9200:9200"
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+    volumes:
+      - es_data:/usr/share/elasticsearch/data
+
+volumes:
+  mongo_data:
+  es_data:
+  upload_volume:
+  web_static_volume:
