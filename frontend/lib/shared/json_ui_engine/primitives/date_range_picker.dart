@@ -1,4 +1,4 @@
-import 'package:flutter/material';
+import 'package:flutter/material.dart';
 import '../models/answer_value.dart';
 import '../models/component_schema.dart';
 import 'primitive_wrapper.dart';
