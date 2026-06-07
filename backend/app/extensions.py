@@ -47,7 +47,7 @@ class MongoDB:
 
     def init_indexes(self, app):
         """Initializes all collections and their corresponding indexes."""
-        if not self.db:
+        if self.db is None:
             return
 
         index_specifications = {
