@@ -157,6 +157,10 @@ def run_analysis_graph_task(analysis_run_id):
                         raise ValueError("form_id is required for form_source")
                     
                     form_oid = ObjectId(form_id) if ObjectId.is_valid(form_id) else form_id
+                    # Verify form exists in database
+                    if not mongo.db.forms.find_one({"_id": form_oid}):
+                        raise ValueError(f"Form {form_id} does not exist.")
+                        
                     docs = list(mongo.db.form_responses.find({"form_id": form_oid}))
                     if include_drafts:
                         drafts = list(mongo.db.response_drafts.find({"form_id": form_oid}))

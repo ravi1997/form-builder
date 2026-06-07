@@ -36,9 +36,11 @@ def validate_and_sort_dag(graph):
 
     if not nx.is_directed_acyclic_graph(dg):
         try:
-            cycle = nx.find_cycle(dg, orientation="original")
-            cycle_str = " -> ".join([f"{u}->{v}" for u, v, _ in cycle])
+            cycle = nx.find_cycle(dg)
+            cycle_str = " -> ".join([f"{u}->{v}" for u, v in cycle])
             raise GraphCycleException(f"Graph contains a cycle: {cycle_str}")
+        except GraphCycleException:
+            raise
         except Exception:
             raise GraphCycleException("Graph contains one or more cyclic loops.")
 
