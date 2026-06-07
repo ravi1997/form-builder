@@ -33,6 +33,9 @@ def create_app(config_name=None):
         
     # Register blueprints
     from app.routes.forms import forms_bp
+    from app.routes.dashboard import dashboard_bp, public_dashboard_bp
     app.register_blueprint(forms_bp)
+    app.register_blueprint(dashboard_bp)
+    app.register_blueprint(public_dashboard_bp)
     
     return app

@@ -134,6 +134,15 @@ class MongoDB:
             ],
             "analysis_runs": [
                 IndexModel([("analysis_id", ASCENDING), ("created_at", DESCENDING)])
+            ],
+            "dashboards": [
+                IndexModel([("org_id", ASCENDING)]),
+                IndexModel([("project_id", ASCENDING)]),
+                IndexModel([("public_token", ASCENDING)], sparse=True, unique=True),
+                IndexModel([("is_deleted", ASCENDING)])
+            ],
+            "dashboard_snapshots": [
+                IndexModel([("dashboard_id", ASCENDING), ("created_at", DESCENDING)])
             ]
         }
 
