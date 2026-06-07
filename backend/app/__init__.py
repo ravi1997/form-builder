@@ -29,4 +29,8 @@ def create_app(config_name=None):
             }
         }), 200
         
+    # Register blueprints
+    from app.routes.forms import forms_bp
+    app.register_blueprint(forms_bp)
+    
     return app
