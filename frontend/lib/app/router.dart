@@ -4,6 +4,8 @@ import '../features/auth/presentation/pages/login_page.dart';
 import '../features/auth/presentation/pages/register_page.dart';
 import '../features/auth/presentation/pages/password_reset_page.dart';
 import '../features/home/presentation/pages/home_page.dart';
+import '../features/form_builder/presentation/pages/form_builder_page.dart';
+import '../features/dashboard_builder/dashboard_builder_page.dart';
 
 final GoRouter appRouter = GoRouter(
   initialLocation: '/login',
@@ -24,5 +26,17 @@ final GoRouter appRouter = GoRouter(
       path: '/reset-password',
       builder: (BuildContext context, GoRouterState state) => const PasswordResetPage(),
     ),
+    GoRoute(
+      path: '/form-builder',
+      builder: (BuildContext context, GoRouterState state) => const FormBuilderPage(),
+    ),
+    GoRoute(
+      path: '/dashboard-builder/:id',
+      builder: (BuildContext context, GoRouterState state) {
+        final id = state.pathParameters['id'] ?? 'default_db';
+        return DashboardBuilderPage(dashboardId: id);
+      },
+    ),
   ],
 );
+
