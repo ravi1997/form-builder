@@ -6,6 +6,42 @@ class GraphCycleException(Exception):
     """Exception raised when a cycle is detected in a graph."""
     pass
 
+def _normalize_dependencies(value):
+    """Return a dependency list from the supported graph input shapes."""
+    if value is None:
+        return []
+    if isinstance(value, dict):
+        dependencies = value.get("dependencies", [])
+        if dependencies is None:
+            return []
+        if isinstance(dependencies, (str, bytes)):
+            raise ValueError("dependencies must be a list of node ids")
+        return list(dependencies)
+    if isinstance(value, (str, bytes)):
+        raise ValueError("dependencies must be a list of node ids")
+    return list(value)
+
+def _build_dag_from_schema(graph):
+    """Build a DiGraph from the documented analysis graph schema."""
+    dag = nx.DiGraph()
+    nodes = graph.get("nodes", [])
+    edges = graph.get("edges", [])
+
+    for node in nodes:
+        node_id = node.get("id")
+        if not node_id:
+            raise ValueError("Each node must include an id")
+        dag.add_node(node_id)
+
+    for edge in edges:
+        from_node = edge.get("from_node")
+        to_node = edge.get("to_node")
+        if not from_node or not to_node:
+            raise ValueError("Each edge must include from_node and to_node")
+        dag.add_edge(from_node, to_node)
+
+    return dag
+
 def validate_and_sort_dag(graph):
     """
     Validates that a graph has no cycles and returns its nodes in topological order.
@@ -22,15 +58,13 @@ def validate_and_sort_dag(graph):
     """
     if isinstance(graph, nx.DiGraph):
         dg = graph
+    elif isinstance(graph, dict) and "nodes" in graph and "edges" in graph:
+        dg = _build_dag_from_schema(graph)
     else:
         dg = nx.DiGraph()
         for node_id, value in graph.items():
             dg.add_node(node_id)
-            if isinstance(value, dict):
-                dependencies = value.get("dependencies", [])
-            else:
-                dependencies = value
-            for dep in dependencies:
+            for dep in _normalize_dependencies(value):
                 # Add edge from dependency to node_id, meaning dependency must execute first.
                 dg.add_edge(dep, node_id)
 

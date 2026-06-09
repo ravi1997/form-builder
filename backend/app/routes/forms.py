@@ -10,34 +10,61 @@ forms_bp = Blueprint("forms", __name__, url_prefix="/api/internal/v1/forms")
 def create_form():
     data = request.get_json() or {}
     name = data.get("name")
+    org_id = data.get("org_id")
+    project_id = data.get("project_id")
+    author_id = data.get("author_id")
     if not name:
         return jsonify({
             "status": "error",
             "code": "BAD_REQUEST",
             "message": "Form name is required."
         }), 400
-        
-    org_id = data.get("org_id") or str(ObjectId())
-    project_id = data.get("project_id") or str(ObjectId())
+    if not org_id:
+        return jsonify({
+            "status": "error",
+            "code": "BAD_REQUEST",
+            "message": "org_id is required."
+        }), 400
+    if not project_id:
+        return jsonify({
+            "status": "error",
+            "code": "BAD_REQUEST",
+            "message": "project_id is required."
+        }), 400
+    if not author_id:
+        return jsonify({
+            "status": "error",
+            "code": "BAD_REQUEST",
+            "message": "author_id is required."
+        }), 400
+
     description = data.get("description", "")
-    author_id = data.get("author_id") or str(ObjectId())
-    
+    form_id = ObjectId()
+    now = datetime.datetime.utcnow()
+    org_value = ObjectId(org_id) if ObjectId.is_valid(org_id) else org_id
+    project_value = ObjectId(project_id) if ObjectId.is_valid(project_id) else project_id
+    author_value = ObjectId(author_id) if ObjectId.is_valid(author_id) else author_id
+
     # Create form document
     form_doc = {
-        "org_id": ObjectId(org_id) if ObjectId.is_valid(org_id) else org_id,
-        "project_id": ObjectId(project_id) if ObjectId.is_valid(project_id) else project_id,
+        "_id": form_id,
+        "org_id": org_value,
+        "project_id": project_value,
         "name": name,
         "description": description,
         "branches": {},
         "production_branch": "main",
+        "tags": {},
+        "template_id": None,
+        "created_by": author_value,
+        "deleted_at": None,
         "is_deleted": False,
-        "created_at": datetime.datetime.utcnow().isoformat(),
-        "updated_at": datetime.datetime.utcnow().isoformat()
+        "created_at": now,
+        "updated_at": now
     }
-    
+
     mongo.db.forms.insert_one(form_doc)
-    form_id = str(form_doc["_id"])
-    
+
     # Create initial commit on main
     init_schema = {
         "ui": {
@@ -45,13 +72,34 @@ def create_form():
                 "primary_color": "#2196F3",
                 "background_color": "#FFFFFF",
                 "font_family": "Roboto",
-                "font_size_base": 14
+                "font_size_base": 14,
+                "border_radius": 8,
+                "input_style": "outlined"
             },
             "layout": "single_page",
-            "cover_page": {"enabled": False, "title": name},
-            "thank_you_page": {"enabled": False, "title": "Thank you"}
+            "cover_page": {
+                "enabled": False,
+                "title": name,
+                "description": "",
+                "image_url": None,
+                "button_label": "Start"
+            },
+            "thank_you_page": {
+                "enabled": False,
+                "title": "Thank you",
+                "message": "",
+                "show_response_id": False,
+                "redirect_url": None,
+                "redirect_delay_seconds": None
+            }
         },
-        "access": {"allow_anonymous": True},
+        "access": {
+            "type": "public",
+            "allowed_org_ids": [],
+            "allowed_group_ids": [],
+            "allowed_user_ids": [],
+            "allow_anonymous": True
+        },
         "settings": {},
         "sections": []
     }
@@ -64,11 +112,16 @@ def create_form():
         branch="main",
         parent_ids=[]
     )
+    mongo.db.forms.update_one(
+        {"_id": form_id, "is_deleted": False},
+        {"$set": {"branches.main": commit["commit_id"], "updated_at": datetime.datetime.utcnow()}}
+    )
     
     return jsonify({
         "status": "success",
+        "message": "Form created successfully.",
         "data": {
-            "form_id": form_id,
+            "form_id": str(form_id),
             "name": name,
             "branches": {
                 "main": commit["commit_id"]
@@ -91,7 +144,7 @@ def commit_schema(form_id):
     branch = data.get("branch", "main")
     parent_id = data.get("parent_id")
     message = data.get("message", "Schema update")
-    author_id = data.get("author_id") or str(ObjectId())
+    author_id = data.get("author_id")
     schema = data.get("schema")
     
     if schema is None:
@@ -100,16 +153,30 @@ def commit_schema(form_id):
             "code": "BAD_REQUEST",
             "message": "Schema is required."
         }), 400
+    if not author_id:
+        return jsonify({
+            "status": "error",
+            "code": "BAD_REQUEST",
+            "message": "author_id is required."
+        }), 400
+    if "branches" not in form or branch not in form["branches"]:
+        return jsonify({
+            "status": "error",
+            "code": "BRANCH_NOT_FOUND",
+            "message": f"Branch {branch} not found."
+        }), 404
         
     # Resolve parent_ids
     parent_ids = []
     if parent_id:
         parent_ids = [parent_id]
-    elif "branches" in form and branch in form["branches"]:
-        parent_ids = [form["branches"][branch]]
+    else:
+        branch_head = form["branches"].get(branch)
+        if branch_head:
+            parent_ids = [branch_head]
         
     commit = create_commit(
-        form_id=form_id,
+        form_id=fid,
         schema=schema,
         author_id=author_id,
         message=message,
@@ -119,6 +186,7 @@ def commit_schema(form_id):
     
     return jsonify({
         "status": "success",
+        "message": "Commit created successfully.",
         "data": {
             "commit_id": commit["commit_id"],
             "timestamp": commit["timestamp"]
@@ -170,6 +238,7 @@ def post_create_branch(form_id):
         res = create_branch(form_id, name, from_commit_id)
         return jsonify({
             "status": "success",
+            "message": "Branch created successfully.",
             "data": res
         }), 201
     except ValueError as e:
@@ -208,6 +277,7 @@ def get_branch_schema(form_id, branch_name):
         
     return jsonify({
         "status": "success",
+        "message": "Branch schema fetched successfully.",
         "data": {
             "schema": commit.get("schema", {}),
             "commit_id": commit_id,
@@ -289,17 +359,19 @@ def publish_branch(form_id):
     
     # Update production branch
     mongo.db.forms.update_one(
-        {"_id": fid},
+        {"_id": fid, "is_deleted": False},
         {"$set": {"production_branch": branch, "updated_at": datetime.datetime.utcnow().isoformat()}}
     )
     
     return jsonify({
         "status": "success",
+        "message": "Branch published successfully.",
         "data": {
             "production_branch": branch,
             "commit_id": commit_id
         }
     }), 200
+
 
 @forms_bp.route("/<form_id>/merge", methods=["POST"])
 def post_merge_branches(form_id):
@@ -338,6 +410,7 @@ def post_merge_branches(form_id):
             }), 409
         return jsonify({
             "status": "success",
+            "message": "Branches merged successfully.",
             "data": res
         }), 200
     except ValueError as e:

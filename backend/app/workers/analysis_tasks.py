@@ -19,36 +19,50 @@ from app.engines.analysis_engine import (
 redis_uri = os.environ.get("REDIS_URI", "redis://localhost:6379/0")
 celery_app = Celery("tasks", broker=redis_uri, backend=redis_uri)
 
+def _utcnow_iso():
+    return datetime.datetime.utcnow().isoformat()
+
+def _to_object_id(value):
+    if isinstance(value, ObjectId):
+        return value
+    if ObjectId.is_valid(str(value)):
+        return ObjectId(str(value))
+    raise ValueError(f"Invalid ObjectId: {value}")
+
+def _safe_result_payload(status, error=None, **extra):
+    payload = {"status": status, "error": error}
+    payload.update(extra)
+    return payload
+
 @celery_app.task(name="app.workers.analysis_tasks.run_analysis_graph_task")
 def run_analysis_graph_task(analysis_run_id):
     """
     Asynchronously executes an analysis pipeline graph.
     """
-    run_oid = ObjectId(analysis_run_id) if ObjectId.is_valid(analysis_run_id) else analysis_run_id
-    
-    # Update status to running
-    mongo.db.analysis_runs.update_one(
-        {"_id": run_oid},
-        {"$set": {"status": "running", "updated_at": datetime.datetime.utcnow().isoformat()}}
-    )
+    run_oid = _to_object_id(analysis_run_id)
+    run_doc = mongo.db.analysis_runs.find_one({"_id": run_oid})
+    if not run_doc:
+        return _safe_result_payload("failed", f"Analysis run {analysis_run_id} not found.", run_id=str(run_oid))
     
     try:
-        # Fetch the run document
-        run_doc = mongo.db.analysis_runs.find_one({"_id": run_oid})
-        if not run_doc:
-            raise ValueError(f"Analysis run {analysis_run_id} not found.")
+        # Update status to running after the run exists.
+        mongo.db.analysis_runs.update_one(
+            {"_id": run_oid},
+            {"$set": {"status": "running", "updated_at": _utcnow_iso()}}
+        )
             
         analysis_id = run_doc.get("analysis_id")
-        analysis_oid = ObjectId(analysis_id) if ObjectId.is_valid(analysis_id) else analysis_id
+        analysis_oid = _to_object_id(analysis_id)
         
         # Fetch the analysis document
-        analysis_doc = mongo.db.analyses.find_one({"_id": analysis_oid})
+        analysis_doc = mongo.db.analyses.find_one({"_id": analysis_oid, "is_deleted": {"$ne": True}})
         if not analysis_doc:
             raise ValueError(f"Analysis {analysis_id} not found.")
             
         graph = analysis_doc.get("graph", {})
         nodes = graph.get("nodes", [])
         edges = graph.get("edges", [])
+        analysis_org_id = analysis_doc.get("org_id")
         
         # Build networkx graph for sorting and validation
         node_map = {n["id"]: n for n in nodes}
@@ -73,13 +87,24 @@ def run_analysis_graph_task(analysis_run_id):
                 {"$set": {
                     "status": "failed",
                     "error": str(e),
-                    "updated_at": datetime.datetime.utcnow().isoformat()
+                    "updated_at": _utcnow_iso()
                 }}
             )
-            return {"status": "failed", "error": str(e)}
+            return _safe_result_payload("failed", str(e), run_id=str(run_oid))
+        except ValueError as e:
+            mongo.db.analysis_runs.update_one(
+                {"_id": run_oid},
+                {"$set": {
+                    "status": "failed",
+                    "error": str(e),
+                    "updated_at": _utcnow_iso()
+                }}
+            )
+            return _safe_result_payload("failed", str(e), run_id=str(run_oid))
 
         node_outputs = {} # node_id -> {port: data}
         node_statuses = {} # node_id -> status (success, error, blocked)
+        node_errors = {}
         
         for node_id in sorted_node_ids:
             node = node_map.get(node_id)
@@ -92,7 +117,7 @@ def run_analysis_graph_task(analysis_run_id):
                     {"$set": {
                         "status": "error",
                         "error": "Node definition not found in graph.",
-                        "updated_at": datetime.datetime.utcnow().isoformat()
+                        "updated_at": _utcnow_iso()
                     }},
                     upsert=True
                 )
@@ -105,7 +130,7 @@ def run_analysis_graph_task(analysis_run_id):
                     {"$set": {
                         "status": "blocked",
                         "error": "Node is disabled.",
-                        "updated_at": datetime.datetime.utcnow().isoformat()
+                        "updated_at": _utcnow_iso()
                     }},
                     upsert=True
                 )
@@ -126,7 +151,7 @@ def run_analysis_graph_task(analysis_run_id):
                     {"$set": {
                         "status": "blocked",
                         "error": "Dependency failed or was blocked.",
-                        "updated_at": datetime.datetime.utcnow().isoformat()
+                        "updated_at": _utcnow_iso()
                     }},
                     upsert=True
                 )
@@ -156,14 +181,23 @@ def run_analysis_graph_task(analysis_run_id):
                     if not form_id:
                         raise ValueError("form_id is required for form_source")
                     
-                    form_oid = ObjectId(form_id) if ObjectId.is_valid(form_id) else form_id
-                    # Verify form exists in database
-                    if not mongo.db.forms.find_one({"_id": form_oid}):
+                    form_oid = _to_object_id(form_id)
+                    form_query = {"_id": form_oid, "is_deleted": {"$ne": True}}
+                    if analysis_org_id is not None:
+                        form_query["org_id"] = analysis_org_id
+                    # Verify form exists in database and belongs to the same tenant when possible.
+                    if not mongo.db.forms.find_one(form_query):
                         raise ValueError(f"Form {form_id} does not exist.")
                         
-                    docs = list(mongo.db.form_responses.find({"form_id": form_oid}))
+                    response_query = {"form_id": form_oid}
+                    if analysis_org_id is not None:
+                        response_query["org_id"] = analysis_org_id
+                    docs = list(mongo.db.form_responses.find(response_query))
                     if include_drafts:
-                        drafts = list(mongo.db.response_drafts.find({"form_id": form_oid}))
+                        draft_query = {"form_id": form_oid}
+                        if analysis_org_id is not None:
+                            draft_query["org_id"] = analysis_org_id
+                        drafts = list(mongo.db.response_drafts.find(draft_query))
                         docs.extend(drafts)
                         
                     records = []
@@ -290,19 +324,20 @@ def run_analysis_graph_task(analysis_run_id):
                     {"$set": {
                         "status": "success",
                         "data": output_data,
-                        "updated_at": datetime.datetime.utcnow().isoformat()
+                        "updated_at": _utcnow_iso()
                     }},
                     upsert=True
                 )
                 
             except Exception as e:
                 node_statuses[node_id] = "error"
+                node_errors[node_id] = str(e)
                 mongo.db.analysis_results.update_one(
                     {"analysis_run_id": run_oid, "node_id": node_id},
                     {"$set": {
                         "status": "error",
                         "error": str(e),
-                        "updated_at": datetime.datetime.utcnow().isoformat()
+                        "updated_at": _utcnow_iso()
                     }},
                     upsert=True
                 )
@@ -321,10 +356,18 @@ def run_analysis_graph_task(analysis_run_id):
             {"$set": {
                 "status": run_status,
                 "error": run_error,
-                "updated_at": datetime.datetime.utcnow().isoformat()
+                "updated_at": _utcnow_iso(),
+                "node_statuses": node_statuses,
+                "node_errors": node_errors
             }}
         )
-        return {"status": run_status, "error": run_error}
+        return _safe_result_payload(
+            run_status,
+            run_error,
+            run_id=str(run_oid),
+            node_statuses=node_statuses,
+            node_errors=node_errors
+        )
         
     except Exception as e:
         mongo.db.analysis_runs.update_one(
@@ -332,7 +375,7 @@ def run_analysis_graph_task(analysis_run_id):
             {"$set": {
                 "status": "failed",
                 "error": str(e),
-                "updated_at": datetime.datetime.utcnow().isoformat()
+                "updated_at": _utcnow_iso()
             }}
         )
-        return {"status": "failed", "error": str(e)}
+        return _safe_result_payload("failed", str(e), run_id=str(run_oid))

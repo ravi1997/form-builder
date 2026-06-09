@@ -7,13 +7,34 @@ def generate_commit_id(form_id, timestamp, author_id):
     raw_str = f"{str(form_id)}{str(timestamp)}{str(author_id)}"
     return hashlib.sha256(raw_str.encode("utf-8")).hexdigest()[:12]
 
-def create_commit(form_id, schema, author_id, message, branch, parent_ids=[]):
+def create_commit(form_id, schema, author_id, message, branch, parent_ids=None):
+    if parent_ids is None:
+        parent_ids = []
     timestamp = datetime.datetime.utcnow().isoformat()
     commit_id = generate_commit_id(form_id, timestamp, author_id)
-    
+
     fid = ObjectId(form_id) if isinstance(form_id, str) and ObjectId.is_valid(form_id) else form_id
     uid = ObjectId(author_id) if isinstance(author_id, str) and ObjectId.is_valid(author_id) else author_id
-    
+
+    form_doc = mongo.db.forms.find_one({"_id": fid, "is_deleted": False})
+    if not form_doc:
+        raise ValueError(f"Form {form_id} not found")
+
+    if "branches" not in form_doc:
+        raise ValueError(f"Form {form_id} has no branch registry")
+
+    if parent_ids:
+        for parent_id in parent_ids:
+            parent_commit = mongo.db.form_commits.find_one(
+                {"form_id": fid, "commit_id": parent_id}
+            )
+            if not parent_commit:
+                raise ValueError(f"Parent commit {parent_id} not found for form {form_id}")
+    elif branch in form_doc["branches"]:
+        branch_head = form_doc["branches"].get(branch)
+        if branch_head:
+            parent_ids = [branch_head]
+
     commit_doc = {
         "form_id": fid,
         "commit_id": commit_id,
@@ -29,14 +50,13 @@ def create_commit(form_id, schema, author_id, message, branch, parent_ids=[]):
     
     # Update branch HEAD in forms collection
     mongo.db.forms.update_one(
-        {"_id": fid},
+        {"_id": fid, "is_deleted": False},
         {
             "$set": {
                 f"branches.{branch}": commit_id,
                 "updated_at": timestamp
             }
-        },
-        upsert=True
+        }
     )
     
     return commit_doc
@@ -45,7 +65,7 @@ def create_branch(form_id, name, from_commit_id):
     fid = ObjectId(form_id) if isinstance(form_id, str) and ObjectId.is_valid(form_id) else form_id
     
     # Check if branch already exists in form
-    form = mongo.db.forms.find_one({"_id": fid})
+    form = mongo.db.forms.find_one({"_id": fid, "is_deleted": False})
     if not form:
         raise ValueError(f"Form {form_id} not found")
         
@@ -59,7 +79,7 @@ def create_branch(form_id, name, from_commit_id):
         
     # Update branch in forms collection
     mongo.db.forms.update_one(
-        {"_id": fid},
+        {"_id": fid, "is_deleted": False},
         {"$set": {f"branches.{name}": from_commit_id, "updated_at": datetime.datetime.utcnow().isoformat()}}
     )
     
@@ -137,17 +157,18 @@ def three_way_merge(form_id, source_branch, target_branch, author_id):
     fid = ObjectId(form_id) if isinstance(form_id, str) and ObjectId.is_valid(form_id) else form_id
     
     # Retrieve form
-    form = mongo.db.forms.find_one({"_id": fid})
+    form = mongo.db.forms.find_one({"_id": fid, "is_deleted": False})
     if not form:
         raise ValueError(f"Form {form_id} not found")
-        
-    if "branches" not in form or source_branch not in form["branches"]:
+
+    branches = form.get("branches", {})
+    if source_branch not in branches:
         raise ValueError(f"Source branch {source_branch} not found")
-    if target_branch not in form["branches"]:
+    if target_branch not in branches:
         raise ValueError(f"Target branch {target_branch} not found")
         
-    source_commit_id = form["branches"][source_branch]
-    target_commit_id = form["branches"][target_branch]
+    source_commit_id = branches[source_branch]
+    target_commit_id = branches[target_branch]
     
     if source_commit_id == target_commit_id:
         # Already fully merged

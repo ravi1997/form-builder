@@ -95,13 +95,37 @@ def apply_filters(result_data: dict, widget: dict, filter_state: dict) -> dict:
     return result_data
 
 class DashboardService:
-    def create_dashboard(self, data, author_id):
+    def _project_query(self, project_oid, context=None):
+        query = {"_id": project_oid, "is_deleted": False}
+        if context and context.get("system_role") != "super_admin":
+            org_ids = context.get("org_ids", [])
+            if org_ids:
+                query["org_id"] = {"$in": [ObjectId(org_id) if ObjectId.is_valid(org_id) else org_id for org_id in org_ids]}
+        return query
+
+    def _dashboard_query(self, dashboard_oid, context=None):
+        query = {"_id": dashboard_oid, "is_deleted": False}
+        if context and context.get("system_role") != "super_admin":
+            org_ids = context.get("org_ids", [])
+            if org_ids:
+                query["org_id"] = {"$in": [ObjectId(org_id) if ObjectId.is_valid(org_id) else org_id for org_id in org_ids]}
+        return query
+
+    def _analysis_query(self, analysis_oid, context=None):
+        query = {"_id": analysis_oid, "is_deleted": False}
+        if context and context.get("system_role") != "super_admin":
+            org_ids = context.get("org_ids", [])
+            if org_ids:
+                query["org_id"] = {"$in": [ObjectId(org_id) if ObjectId.is_valid(org_id) else org_id for org_id in org_ids]}
+        return query
+
+    def create_dashboard(self, data, author_id, context=None):
         project_id = data.get("project_id")
         if not project_id:
             raise ValueError("project_id is required")
             
         project_oid = ObjectId(project_id) if ObjectId.is_valid(project_id) else project_id
-        project = mongo.db.projects.find_one({"_id": project_oid})
+        project = mongo.db.projects.find_one(self._project_query(project_oid, context))
         if not project:
             raise ValueError("Project not found")
             
@@ -172,7 +196,7 @@ class DashboardService:
             "linked_analysis_ids": [],
             "created_at": datetime.datetime.utcnow().isoformat(),
             "updated_at": datetime.datetime.utcnow().isoformat(),
-            "created_by": ObjectId(author_id) if ObjectId.is_valid(author_id) else author_id,
+            "created_by": ObjectId(author_id) if author_id and ObjectId.is_valid(author_id) else author_id,
             "is_deleted": False,
             "deleted_at": None
         }
@@ -180,9 +204,12 @@ class DashboardService:
         mongo.db.dashboards.insert_one(dashboard_doc)
         return dashboard_doc
 
-    def list_dashboards(self, project_id, page=1, per_page=20, search_text=None):
+    def list_dashboards(self, project_id, page=1, per_page=20, search_text=None, context=None):
         project_oid = ObjectId(project_id) if ObjectId.is_valid(project_id) else project_id
         query = {"project_id": project_oid, "is_deleted": False}
+        project = mongo.db.projects.find_one(self._project_query(project_oid, context))
+        if not project:
+            return [], {"total": 0, "page": page, "per_page": per_page, "total_pages": 0}
         
         if search_text:
             query["name"] = {"$regex": search_text, "$options": "i"}
@@ -223,9 +250,9 @@ class DashboardService:
             "total_pages": total_pages
         }
 
-    def get_dashboard(self, dashboard_id):
+    def get_dashboard(self, dashboard_id, context=None):
         d_oid = ObjectId(dashboard_id) if ObjectId.is_valid(dashboard_id) else dashboard_id
-        dashboard = mongo.db.dashboards.find_one({"_id": d_oid, "is_deleted": False})
+        dashboard = mongo.db.dashboards.find_one(self._dashboard_query(d_oid, context))
         if not dashboard:
             return None
             
@@ -233,7 +260,7 @@ class DashboardService:
         linked_analyses = []
         for a_id in dashboard.get("linked_analysis_ids", []):
             a_oid = ObjectId(a_id) if ObjectId.is_valid(a_id) else a_id
-            analysis = mongo.db.analyses.find_one({"_id": a_oid})
+            analysis = mongo.db.analyses.find_one(self._analysis_query(a_oid, context))
             if not analysis:
                 continue
                 
@@ -278,9 +305,9 @@ class DashboardService:
             "linked_analyses": linked_analyses
         }
 
-    def update_dashboard(self, dashboard_id, data):
+    def update_dashboard(self, dashboard_id, data, context=None):
         d_oid = ObjectId(dashboard_id) if ObjectId.is_valid(dashboard_id) else dashboard_id
-        dashboard = mongo.db.dashboards.find_one({"_id": d_oid, "is_deleted": False})
+        dashboard = mongo.db.dashboards.find_one(self._dashboard_query(d_oid, context))
         if not dashboard:
             return None
             
@@ -329,14 +356,14 @@ class DashboardService:
             
         if update_fields:
             update_fields["updated_at"] = datetime.datetime.utcnow().isoformat()
-            mongo.db.dashboards.update_one({"_id": d_oid}, {"$set": update_fields})
+            mongo.db.dashboards.update_one(self._dashboard_query(d_oid, context), {"$set": update_fields})
             
-        return self.get_dashboard(dashboard_id)
+        return self.get_dashboard(dashboard_id, context)
 
-    def delete_dashboard(self, dashboard_id):
+    def delete_dashboard(self, dashboard_id, context=None):
         d_oid = ObjectId(dashboard_id) if ObjectId.is_valid(dashboard_id) else dashboard_id
         mongo.db.dashboards.update_one(
-            {"_id": d_oid},
+            self._dashboard_query(d_oid, context),
             {"$set": {
                 "is_deleted": True,
                 "deleted_at": datetime.datetime.utcnow().isoformat(),
@@ -344,9 +371,9 @@ class DashboardService:
             }}
         )
 
-    def save_canvas(self, dashboard_id, canvas):
+    def save_canvas(self, dashboard_id, canvas, context=None):
         d_oid = ObjectId(dashboard_id) if ObjectId.is_valid(dashboard_id) else dashboard_id
-        dashboard = mongo.db.dashboards.find_one({"_id": d_oid, "is_deleted": False})
+        dashboard = mongo.db.dashboards.find_one(self._dashboard_query(d_oid, context))
         if not dashboard:
             return None
             
@@ -374,6 +401,8 @@ class DashboardService:
             "kpi_card", "bar_chart", "line_chart", "pie_chart", "data_table",
             "text_label", "image_widget", "filter_widget", "divider_widget"
         }
+        valid_refresh_modes = {"with_dashboard", "independent", "never"}
+        filter_widget_ids = set()
         
         for widget in widgets:
             wid = widget.get("id")
@@ -396,6 +425,9 @@ class DashboardService:
             
             if wtype not in valid_types:
                 raise ValueError(f"Unknown widget type: {wtype}")
+
+            if wtype == "filter_widget":
+                filter_widget_ids.add(wid)
                 
             if pos.get("x", 0) < 0 or pos.get("y", 0) < 0:
                 raise ValueError("Widget coordinates x and y must be greater than or equal to 0")
@@ -411,30 +443,29 @@ class DashboardService:
                 node_id = binding.get("node_id")
                 refresh_mode = binding.get("refresh_mode", "with_dashboard")
                 
-                if refresh_mode not in ("with_dashboard", "independent", "never"):
+                if refresh_mode not in valid_refresh_modes:
                     raise ValueError(f"Invalid refresh_mode: {refresh_mode}")
-                    
-                if analysis_id:
-                    # Verify analysis exists
-                    a_oid = ObjectId(analysis_id) if ObjectId.is_valid(analysis_id) else analysis_id
-                    analysis = mongo.db.analyses.find_one({"_id": a_oid})
-                    if not analysis:
-                        raise ValueError(f"Bound analysis {analysis_id} does not exist")
-                    
-                    if node_id:
-                        # Verify node exists in analysis
-                        nodes = analysis.get("graph", {}).get("nodes", [])
-                        if not any(n.get("id") == node_id for n in nodes):
-                            raise ValueError(f"Node {node_id} not found in analysis {analysis_id}")
-                            
-                    linked_analysis_ids.add(ObjectId(analysis_id) if ObjectId.is_valid(analysis_id) else analysis_id)
-                    
-            # Check filter bindings exist in this canvas
+                if not analysis_id or not node_id:
+                    raise ValueError("data_binding requires analysis_id and node_id")
+
+                a_oid = ObjectId(analysis_id) if ObjectId.is_valid(analysis_id) else analysis_id
+                analysis = mongo.db.analyses.find_one(self._analysis_query(a_oid, context))
+                if not analysis:
+                    raise ValueError(f"Bound analysis {analysis_id} does not exist")
+
+                nodes = analysis.get("graph", {}).get("nodes", [])
+                if not any(n.get("id") == node_id for n in nodes):
+                    raise ValueError(f"Node {node_id} not found in analysis {analysis_id}")
+
+                linked_analysis_ids.add(a_oid)
+
             for f in widget.get("filters", []):
                 filter_widget_id = f.get("filter_widget_id")
                 if not filter_widget_id:
                     raise ValueError("Each filter binding must specify filter_widget_id")
-                    
+                if filter_widget_id == wid:
+                    raise ValueError("Widget cannot filter itself")
+
         # Verify that each referenced filter widget id exists in the widgets array
         for widget in widgets:
             for f in widget.get("filters", []):
@@ -449,7 +480,7 @@ class DashboardService:
         after_widget_count = len(widgets)
         
         mongo.db.dashboards.update_one(
-            {"_id": d_oid},
+            self._dashboard_query(d_oid, context),
             {"$set": {
                 "canvas": {
                     "width": width,
@@ -473,7 +504,7 @@ class DashboardService:
             "timestamp": datetime.datetime.utcnow().isoformat()
         })
         
-        return self.get_dashboard(dashboard_id)
+        return self.get_dashboard(dashboard_id, context)
 
     def resolve_widget_data(self, dashboard, filter_state=None):
         if not filter_state:
@@ -573,8 +604,11 @@ class DashboardService:
             
         return widget_data
 
-    def get_filter_options(self, analysis_id, node_id, column, limit=200):
+    def get_filter_options(self, analysis_id, node_id, column, limit=200, context=None):
         a_oid = ObjectId(analysis_id) if ObjectId.is_valid(analysis_id) else analysis_id
+        analysis = mongo.db.analyses.find_one(self._analysis_query(a_oid, context))
+        if not analysis:
+            return {"column": column, "values": [], "total_distinct": 0}
         
         # Latest completed run
         run = mongo.db.analysis_runs.find_one(
@@ -638,9 +672,9 @@ class DashboardService:
                 
         return result_payload
 
-    def create_snapshot(self, dashboard_id, author_id):
+    def create_snapshot(self, dashboard_id, author_id, context=None):
         d_oid = ObjectId(dashboard_id) if ObjectId.is_valid(dashboard_id) else dashboard_id
-        dashboard = mongo.db.dashboards.find_one({"_id": d_oid, "is_deleted": False})
+        dashboard = mongo.db.dashboards.find_one(self._dashboard_query(d_oid, context))
         if not dashboard:
             return None
             
@@ -663,7 +697,7 @@ class DashboardService:
                 "snapshot_at": datetime.datetime.utcnow().isoformat()
             },
             "created_at": datetime.datetime.utcnow().isoformat(),
-            "created_by": ObjectId(author_id) if ObjectId.is_valid(author_id) else author_id,
+            "created_by": ObjectId(author_id) if author_id and ObjectId.is_valid(author_id) else author_id,
             "is_deleted": False,
             "deleted_at": None
         }
