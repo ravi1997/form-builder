@@ -2,6 +2,8 @@ import os
 import pymongo
 from pymongo import MongoClient, IndexModel, ASCENDING, DESCENDING
 import redis
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 
 class MongoDB:
     def __init__(self):
@@ -93,6 +95,14 @@ class MongoDB:
             "oauth_clients": [
                 IndexModel([("client_id", ASCENDING)], unique=True)
             ],
+            "oauth_authorization_codes": [
+                IndexModel([("code_hash", ASCENDING)], unique=True),
+                IndexModel([("expires_at", ASCENDING)], expireAfterSeconds=0)
+            ],
+            "password_reset_tokens": [
+                IndexModel([("token", ASCENDING)], unique=True),
+                IndexModel([("expires_at", ASCENDING)], expireAfterSeconds=0)
+            ],
             "projects": [
                 IndexModel([("org_id", ASCENDING)]),
                 IndexModel([("slug", ASCENDING)])
@@ -151,6 +161,26 @@ class MongoDB:
             ],
             "dashboard_snapshots": [
                 IndexModel([("dashboard_id", ASCENDING), ("created_at", DESCENDING)])
+            ],
+            "notification_log": [
+                IndexModel([("recipient_id", ASCENDING), ("channel", ASCENDING), ("is_read", ASCENDING)]),
+                IndexModel([("org_id", ASCENDING), ("created_at", DESCENDING)]),
+                IndexModel([("event_type", ASCENDING), ("created_at", DESCENDING)])
+            ],
+            "notification_templates": [
+                IndexModel([("event_type", ASCENDING), ("org_id", ASCENDING), ("is_active", ASCENDING)])
+            ],
+            "notification_rules": [
+                IndexModel([("org_id", ASCENDING), ("event_type", ASCENDING), ("is_active", ASCENDING)])
+            ],
+            "storage_quotas": [
+                IndexModel([("org_id", ASCENDING)], unique=True),
+                IndexModel([("last_calculated_at", DESCENDING)])
+            ],
+            "webhook_configs": [
+                IndexModel([("org_id", ASCENDING), ("is_active", ASCENDING)]),
+                IndexModel([("form_id", ASCENDING)]),
+                IndexModel([("project_id", ASCENDING)])
             ]
         }
 
@@ -165,6 +195,7 @@ class MongoDB:
 
 mongo = MongoDB()
 redis_client = None
+limiter = Limiter(key_func=get_remote_address, storage_uri="memory://")
 
 def init_redis(app):
     global redis_client
@@ -180,3 +211,11 @@ def init_redis(app):
     else:
         # Mock redis for testing if needed or use simple strict redis client
         redis_client = redis.from_url(redis_uri)
+
+
+def init_limiter(app):
+    if app.config.get("TESTING"):
+        limiter.init_app(app)
+    else:
+        limiter.storage_uri = app.config.get("REDIS_URI", "memory://")
+        limiter.init_app(app)

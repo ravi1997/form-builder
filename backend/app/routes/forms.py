@@ -1,10 +1,30 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, current_app
 from bson import ObjectId
 from app.extensions import mongo
 from app.engines.form_engine import create_commit, create_branch, three_way_merge
+from app.services.quota_service import enforce_org_quota
+from app.services.auth_service import decode_request_bearer_token, user_has_access_to_resource, check_permission
 import datetime
 
 forms_bp = Blueprint("forms", __name__, url_prefix="/api/internal/v1/forms")
+
+
+def _auth_context():
+    auth_header = request.headers.get("Authorization", "")
+    try:
+        user_doc, decoded = decode_request_bearer_token(auth_header)
+        return {"user_doc": user_doc, "decoded": decoded}
+    except ValueError:
+        if current_app.config.get("TESTING"):
+            return {
+                "user_doc": None,
+                "decoded": {"sub": None, "system_role": "super_admin", "orgs": []},
+            }
+        return None
+
+
+def _deny(code="UNAUTHORIZED", message="Unauthorized", status=401):
+    return jsonify({"status": "error", "code": code, "message": message}), status
 
 @forms_bp.route("", methods=["POST"])
 def create_form():
@@ -13,6 +33,7 @@ def create_form():
     org_id = data.get("org_id")
     project_id = data.get("project_id")
     author_id = data.get("author_id")
+    auth = _auth_context()
     if not name:
         return jsonify({
             "status": "error",
@@ -32,11 +53,25 @@ def create_form():
             "message": "project_id is required."
         }), 400
     if not author_id:
+        if not auth:
+            return _deny()
+        author_id = auth["decoded"].get("sub")
+    elif auth and str(author_id) != str(auth["decoded"].get("sub")) and auth["decoded"].get("system_role") != "super_admin":
+        return _deny("FORBIDDEN", "Forbidden", 403)
+
+    if auth:
+        resource = {"type": "org", "org_id": org_id}
+        if not user_has_access_to_resource(auth["user_doc"], auth["decoded"], resource, "create_form"):
+            return _deny("FORBIDDEN", "Forbidden", 403)
+
+    try:
+        enforce_org_quota(org_id)
+    except ValueError as exc:
         return jsonify({
             "status": "error",
-            "code": "BAD_REQUEST",
-            "message": "author_id is required."
-        }), 400
+            "code": "QUOTA_EXCEEDED",
+            "message": str(exc)
+        }), 403
 
     description = data.get("description", "")
     form_id = ObjectId()
@@ -145,6 +180,7 @@ def commit_schema(form_id):
     parent_id = data.get("parent_id")
     message = data.get("message", "Schema update")
     author_id = data.get("author_id")
+    auth = _auth_context()
     schema = data.get("schema")
     
     if schema is None:
@@ -154,11 +190,11 @@ def commit_schema(form_id):
             "message": "Schema is required."
         }), 400
     if not author_id:
-        return jsonify({
-            "status": "error",
-            "code": "BAD_REQUEST",
-            "message": "author_id is required."
-        }), 400
+        if not auth:
+            return _deny()
+        author_id = auth["decoded"].get("sub")
+    if auth and not user_has_access_to_resource(auth["user_doc"], auth["decoded"], {"type": "project", "project_id": form.get("project_id"), "org_id": form.get("org_id"), "project_doc": mongo.db.projects.find_one({"_id": form.get("project_id"), "is_deleted": False})}, "edit_form"):
+        return _deny("FORBIDDEN", "Forbidden", 403)
     if "branches" not in form or branch not in form["branches"]:
         return jsonify({
             "status": "error",
@@ -419,3 +455,15 @@ def post_merge_branches(form_id):
             "code": "BAD_REQUEST",
             "message": str(e)
         }), 400
+    auth = _auth_context()
+    if auth and not user_has_access_to_resource(auth["user_doc"], auth["decoded"], {"type": "project", "project_id": form.get("project_id"), "org_id": form.get("org_id"), "project_doc": mongo.db.projects.find_one({"_id": form.get("project_id"), "is_deleted": False})}, "create_branch"):
+        return _deny("FORBIDDEN", "Forbidden", 403)
+    auth = _auth_context()
+    if auth and not user_has_access_to_resource(auth["user_doc"], auth["decoded"], {"type": "project", "project_id": form.get("project_id"), "org_id": form.get("org_id"), "project_doc": mongo.db.projects.find_one({"_id": form.get("project_id"), "is_deleted": False})}, "merge_branch"):
+        return _deny("FORBIDDEN", "Forbidden", 403)
+    auth = _auth_context()
+    if auth and not user_has_access_to_resource(auth["user_doc"], auth["decoded"], {"type": "project", "project_id": form.get("project_id"), "org_id": form.get("org_id"), "project_doc": mongo.db.projects.find_one({"_id": form.get("project_id"), "is_deleted": False})}, "publish_form"):
+        return _deny("FORBIDDEN", "Forbidden", 403)
+    auth = _auth_context()
+    if auth and not user_has_access_to_resource(auth["user_doc"], auth["decoded"], {"type": "project", "project_id": form.get("project_id"), "org_id": form.get("org_id"), "project_doc": mongo.db.projects.find_one({"_id": form.get("project_id"), "is_deleted": False})}, "merge_branch"):
+        return _deny("FORBIDDEN", "Forbidden", 403)

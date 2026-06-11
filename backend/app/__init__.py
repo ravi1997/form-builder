@@ -2,7 +2,7 @@ import os
 from flask import Flask, jsonify
 from flask_cors import CORS
 from app.config import config_by_name
-from app.extensions import mongo, init_redis
+from app.extensions import mongo, init_redis, init_limiter
 from app.services.search_service import search_service
 
 def create_app(config_name=None):
@@ -18,6 +18,7 @@ def create_app(config_name=None):
     # Initialize Extensions
     mongo.init_app(app)
     init_redis(app)
+    init_limiter(app)
     search_service.init_app(app)
     
     # Register Health Check Endpoint
@@ -34,8 +35,18 @@ def create_app(config_name=None):
     # Register blueprints
     from app.routes.forms import forms_bp
     from app.routes.dashboard import dashboard_bp, public_dashboard_bp
+    from app.routes.sync import sync_bp
+    from app.routes.notifications import notifications_bp
+    from app.routes.auth import auth_bp
+    from app.routes.auth import admin_bp
+    from app.routes.identity import identity_bp
     app.register_blueprint(forms_bp)
     app.register_blueprint(dashboard_bp)
     app.register_blueprint(public_dashboard_bp)
-    
+    app.register_blueprint(sync_bp)
+    app.register_blueprint(notifications_bp)
+    app.register_blueprint(auth_bp)
+    app.register_blueprint(admin_bp)
+    app.register_blueprint(identity_bp)
+
     return app

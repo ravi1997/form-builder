@@ -6,6 +6,7 @@ import json
 import jwt
 
 from app.extensions import mongo
+from app.services.auth_service import decode_request_bearer_token
 from app.services.dashboard_service import dashboard_service, serialize_doc
 
 dashboard_bp = Blueprint("dashboard", __name__, url_prefix="/api/internal/v1/dashboards")
@@ -36,21 +37,12 @@ def error_response(code, message, status_code=400, details=None):
 
 
 def _decode_access_token():
-    auth_header = request.headers.get("Authorization", "")
-    if not auth_header.startswith("Bearer "):
-        return None
-
-    token = auth_header.split(" ", 1)[1].strip()
-    if not token:
-        return None
-
     try:
-        secret = current_app.config.get("JWT_SECRET_KEY") or "secret"
-        decoded = jwt.decode(token, secret, algorithms=["HS256"])
+        _, decoded = decode_request_bearer_token(request.headers.get("Authorization", ""))
         if decoded.get("system_role") not in ("super_admin", "user"):
             return None
         return decoded
-    except Exception:
+    except ValueError:
         return None
 
 
