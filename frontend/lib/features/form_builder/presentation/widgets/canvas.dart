@@ -16,13 +16,38 @@ class BuilderCanvas extends ConsumerWidget {
     required this.onSubSectionActivated,
   });
 
+  Color _parseHexColor(String hex, Color fallback) {
+    try {
+      final cleanHex = hex.trim().replaceAll('#', '');
+      if (cleanHex.length == 6) {
+        return Color(int.parse('FF$cleanHex', radix: 16));
+      } else if (cleanHex.length == 8) {
+        return Color(int.parse(cleanHex, radix: 16));
+      }
+    } catch (_) {}
+    return fallback;
+  }
+
+  TextStyle? _applyFont(TextStyle? style, String fontFamily) {
+    if (style == null) return null;
+    return style.copyWith(fontFamily: fontFamily);
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final builderState = ref.watch(formBuilderProvider);
     final theme = Theme.of(context);
+    final canvasBg = _parseHexColor(builderState.style.backgroundColor, theme.colorScheme.surface);
+    final canvasPrimary = _parseHexColor(builderState.style.primaryColor, theme.primaryColor);
+    final fontFamily = builderState.style.fontFamily;
+    final radius = builderState.style.borderRadius;
 
     return Container(
-      decoration: AppSurfaceStyles.card(),
+      key: const ValueKey('form-canvas-root'),
+      decoration: AppSurfaceStyles.card(
+        tint: canvasBg,
+        radiusValue: radius,
+      ),
       child: Padding(
         padding: const EdgeInsets.all(AppSpacing.lg),
         child: Column(
@@ -36,14 +61,14 @@ class BuilderCanvas extends ConsumerWidget {
                     children: [
                       Text(
                         'Canvas',
-                        style: theme.textTheme.titleLarge?.copyWith(
+                        style: _applyFont(theme.textTheme.titleLarge, fontFamily)?.copyWith(
                           fontWeight: FontWeight.w800,
                         ),
                       ),
                       const SizedBox(height: AppSpacing.xs),
                       Text(
                         'Compose sections, sub-sections, and questions in a single workspace.',
-                        style: theme.textTheme.bodySmall?.copyWith(
+                        style: _applyFont(theme.textTheme.bodySmall, fontFamily)?.copyWith(
                           color: AppColors.textSecondary,
                         ),
                       ),
@@ -54,6 +79,10 @@ class BuilderCanvas extends ConsumerWidget {
                   onPressed: () {
                     ref.read(formBuilderProvider.notifier).addSection();
                   },
+                  style: FilledButton.styleFrom(
+                    backgroundColor: canvasPrimary,
+                    foregroundColor: canvasBg.computeLuminance() > 0.5 ? Colors.white : Colors.black,
+                  ),
                   icon: const Icon(Icons.add, size: 18),
                   label: const Text('Add section'),
                 ),
@@ -75,8 +104,9 @@ class BuilderCanvas extends ConsumerWidget {
                     decoration: AppSurfaceStyles.card(
                       selected: isSelectedSec,
                       tint: isSelectedSec
-                          ? AppColors.brandPrimarySoft
-                          : AppColors.surfaceCard,
+                          ? canvasPrimary.withValues(alpha: 0.15)
+                          : canvasBg.withValues(alpha: 0.9),
+                      radiusValue: radius,
                     ),
                     child: Padding(
                       padding: const EdgeInsets.all(AppSpacing.lg),
@@ -91,14 +121,14 @@ class BuilderCanvas extends ConsumerWidget {
                                   contentPadding: EdgeInsets.zero,
                                   title: Text(
                                     section.title,
-                                    style: theme.textTheme.titleMedium
+                                    style: _applyFont(theme.textTheme.titleMedium, fontFamily)
                                         ?.copyWith(fontWeight: FontWeight.w800),
                                   ),
                                   subtitle: Text(
                                     section.description.isNotEmpty
                                         ? section.description
                                         : 'No description',
-                                    style: theme.textTheme.bodySmall?.copyWith(
+                                    style: _applyFont(theme.textTheme.bodySmall, fontFamily)?.copyWith(
                                       color: AppColors.textMuted,
                                     ),
                                   ),
