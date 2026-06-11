@@ -62,7 +62,11 @@ def test_create_form_and_commit(client):
 
 def test_branch_operations(client):
     # Create Form
-    res = client.post("/api/internal/v1/forms", json={"name": "Branching Form"})
+    res = client.post("/api/internal/v1/forms", json={
+        "name": "Branching Form",
+        "project_id": str(ObjectId()),
+        "org_id": str(ObjectId())
+    })
     form_id = res.get_json()["data"]["form_id"]
     init_commit_id = res.get_json()["data"]["branches"]["main"]
 
@@ -98,7 +102,11 @@ def test_branch_operations(client):
 
 def test_publish_branch(client):
     # Create Form
-    res = client.post("/api/internal/v1/forms", json={"name": "Publishing Form"})
+    res = client.post("/api/internal/v1/forms", json={
+        "name": "Publishing Form",
+        "project_id": str(ObjectId()),
+        "org_id": str(ObjectId())
+    })
     form_id = res.get_json()["data"]["form_id"]
     
     # Create dev branch
@@ -115,7 +123,11 @@ def test_publish_branch(client):
 
 def test_three_way_merge_auto(client, db):
     # Setup a common base commit
-    res = client.post("/api/internal/v1/forms", json={"name": "Merge Form"})
+    res = client.post("/api/internal/v1/forms", json={
+        "name": "Merge Form",
+        "project_id": str(ObjectId()),
+        "org_id": str(ObjectId())
+    })
     form_id = res.get_json()["data"]["form_id"]
     init_commit_id = res.get_json()["data"]["branches"]["main"]
 
@@ -250,7 +262,11 @@ def test_three_way_merge_auto(client, db):
 
 def test_three_way_merge_conflict(client):
     # Setup form
-    res = client.post("/api/internal/v1/forms", json={"name": "Conflict Form"})
+    res = client.post("/api/internal/v1/forms", json={
+        "name": "Conflict Form",
+        "project_id": str(ObjectId()),
+        "org_id": str(ObjectId())
+    })
     form_id = res.get_json()["data"]["form_id"]
     
     base_schema = {
@@ -302,3 +318,72 @@ def test_three_way_merge_conflict(client):
     assert err["code"] == "MERGE_CONFLICT"
     assert "ui" in err["details"]["conflict_fields"]
     assert "pending_merge_id" in err["details"]
+
+def test_style_presets(client):
+    res = client.get("/api/internal/v1/forms/presets")
+    assert res.status_code == 200
+    presets = res.get_json()["data"]
+    assert len(presets) == 3
+    assert presets[0]["id"] == "sleek_dark"
+    assert "primary_color" in presets[0]["tokens"]
+    assert "custom_css" in presets[0]
+
+def test_custom_css_validation(client):
+    # Create Form
+    res = client.post("/api/internal/v1/forms", json={
+        "name": "Validation Form",
+        "project_id": str(ObjectId()),
+        "org_id": str(ObjectId())
+    })
+    form_id = res.get_json()["data"]["form_id"]
+    
+    # Commit with invalid custom_css (script tag)
+    schema = {
+        "ui": {
+            "theme": {
+                "custom_css": ".form { font-size: 14px; } <script>alert(1)</script>"
+            }
+        },
+        "sections": []
+    }
+    res = client.post(f"/api/internal/v1/forms/{form_id}/commits", json={
+        "branch": "main",
+        "schema": schema,
+        "message": "Inject script"
+    })
+    assert res.status_code == 400
+    assert "forbidden HTML/script tags" in res.get_json()["message"]
+
+    # Commit with invalid custom_css (too large)
+    large_schema = {
+        "ui": {
+            "theme": {
+                "custom_css": "a" * 10001
+            }
+        },
+        "sections": []
+    }
+    res = client.post(f"/api/internal/v1/forms/{form_id}/commits", json={
+        "branch": "main",
+        "schema": large_schema,
+        "message": "Too large css"
+    })
+    assert res.status_code == 400
+    assert "exceeds size limit" in res.get_json()["message"]
+
+    # Commit with valid custom_css
+    valid_schema = {
+        "ui": {
+            "theme": {
+                "custom_css": ".form { background-color: red; }"
+            }
+        },
+        "sections": []
+    }
+    res = client.post(f"/api/internal/v1/forms/{form_id}/commits", json={
+        "branch": "main",
+        "schema": valid_schema,
+        "message": "Valid custom css"
+    })
+    assert res.status_code == 200
+

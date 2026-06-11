@@ -26,6 +26,66 @@ def _auth_context():
 def _deny(code="UNAUTHORIZED", message="Unauthorized", status=401):
     return jsonify({"status": "error", "code": code, "message": message}), status
 
+def validate_custom_css(custom_css):
+    if not isinstance(custom_css, str):
+        raise ValueError("custom_css must be a string")
+    if len(custom_css) > 10000:
+        raise ValueError("custom_css exceeds size limit of 10000 characters")
+    lower_css = custom_css.lower()
+    if "<script" in lower_css or "javascript:" in lower_css or "</script>" in lower_css or "<html" in lower_css or "<body" in lower_css:
+        raise ValueError("custom_css contains forbidden HTML/script tags")
+
+@forms_bp.route("/presets", methods=["GET"])
+def get_presets():
+    presets = [
+        {
+            "id": "sleek_dark",
+            "name": "Sleek Dark",
+            "description": "A premium, high-contrast dark theme.",
+            "tokens": {
+                "primary_color": "#BB86FC",
+                "background_color": "#121212",
+                "font_family": "Inter",
+                "border_radius": 8,
+                "input_style": "filled"
+            },
+            "branding": {},
+            "custom_css": "/* Sleek Dark Presets */\n.form-container {\n  background-color: #121212;\n  color: #FFFFFF;\n}\n.form-input {\n  background-color: #1E1E1E;\n  color: #FFFFFF;\n  border-color: #BB86FC;\n}"
+        },
+        {
+            "id": "glassmorphism",
+            "name": "Glassmorphism",
+            "description": "Modern frosted-glass look with soft backgrounds.",
+            "tokens": {
+                "primary_color": "#E91E63",
+                "background_color": "#F0F3F6",
+                "font_family": "Outfit",
+                "border_radius": 16,
+                "input_style": "outlined"
+            },
+            "branding": {},
+            "custom_css": "/* Glassmorphism Presets */\n.form-container {\n  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);\n}\n.form-card {\n  background: rgba(255, 255, 255, 0.25);\n  backdrop-filter: blur(4px);\n  -webkit-backdrop-filter: blur(4px);\n  border: 1px solid rgba(255, 255, 255, 0.18);\n  border-radius: 16px;\n}"
+        },
+        {
+            "id": "warm_professional",
+            "name": "Warm Professional",
+            "description": "Clean, corporate styles with warm amber tones.",
+            "tokens": {
+                "primary_color": "#FF9800",
+                "background_color": "#FFFDE7",
+                "font_family": "Roboto",
+                "border_radius": 4,
+                "input_style": "outlined"
+            },
+            "branding": {},
+            "custom_css": "/* Warm Professional Presets */\n.form-container {\n  background-color: #FFFDE7;\n  color: #3E2723;\n}\n.form-input {\n  border-color: #FF9800;\n}"
+        }
+    ]
+    return jsonify({
+        "status": "success",
+        "data": presets
+    }), 200
+
 @forms_bp.route("", methods=["POST"])
 def create_form():
     data = request.get_json() or {}
@@ -189,6 +249,20 @@ def commit_schema(form_id):
             "code": "BAD_REQUEST",
             "message": "Schema is required."
         }), 400
+        
+    if isinstance(schema, dict) and "ui" in schema:
+        ui = schema.get("ui")
+        if isinstance(ui, dict) and "theme" in ui:
+            theme = ui.get("theme")
+            if isinstance(theme, dict) and "custom_css" in theme:
+                try:
+                    validate_custom_css(theme["custom_css"])
+                except ValueError as e:
+                    return jsonify({
+                        "status": "error",
+                        "code": "BAD_REQUEST",
+                        "message": str(e)
+                    }), 400
     if not author_id:
         if not auth:
             return _deny()
