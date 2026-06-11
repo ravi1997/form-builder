@@ -297,13 +297,54 @@ String _slugify(String input) {
   return slug.isEmpty ? 'section' : slug;
 }
 
+class FormStyle {
+  final String? themeId;
+  final String primaryColor;
+  final String backgroundColor;
+  final String fontFamily;
+  final double borderRadius;
+  final String inputStyle;
+  final String customCss;
+
+  FormStyle({
+    this.themeId,
+    this.primaryColor = '#2196F3',
+    this.backgroundColor = '#FFFFFF',
+    this.fontFamily = 'Roboto',
+    this.borderRadius = 8.0,
+    this.inputStyle = 'outlined',
+    this.customCss = '',
+  });
+
+  FormStyle copyWith({
+    String? themeId,
+    String? primaryColor,
+    String? backgroundColor,
+    String? fontFamily,
+    double? borderRadius,
+    String? inputStyle,
+    String? customCss,
+    bool clearThemeId = false,
+  }) {
+    return FormStyle(
+      themeId: clearThemeId ? null : (themeId ?? this.themeId),
+      primaryColor: primaryColor ?? this.primaryColor,
+      backgroundColor: backgroundColor ?? this.backgroundColor,
+      fontFamily: fontFamily ?? this.fontFamily,
+      borderRadius: borderRadius ?? this.borderRadius,
+      inputStyle: inputStyle ?? this.inputStyle,
+      customCss: customCss ?? this.customCss,
+    );
+  }
+}
+
 class FormBuilderState {
   final String formId;
   final String name;
   final String description;
   final List<FormSection> sections;
-  final String?
-  selectedElementId; // Currently selected Section/SubSection/Question ID
+  final String? selectedElementId; // Currently selected Section/SubSection/Question ID
+  final FormStyle style;
 
   FormBuilderState({
     required this.formId,
@@ -311,6 +352,7 @@ class FormBuilderState {
     this.description = '',
     required this.sections,
     this.selectedElementId,
+    required this.style,
   });
 
   FormBuilderState copyWith({
@@ -319,6 +361,7 @@ class FormBuilderState {
     String? description,
     List<FormSection>? sections,
     String? selectedElementId,
+    FormStyle? style,
   }) {
     return FormBuilderState(
       formId: formId ?? this.formId,
@@ -326,6 +369,7 @@ class FormBuilderState {
       description: description ?? this.description,
       sections: sections ?? List<FormSection>.from(this.sections),
       selectedElementId: selectedElementId ?? this.selectedElementId,
+      style: style ?? this.style,
     );
   }
 }
@@ -336,6 +380,7 @@ class FormBuilderNotifier extends Notifier<FormBuilderState> {
     return FormBuilderState(
       formId: 'default',
       name: 'My Custom Form',
+      style: FormStyle(),
       sections: [
         FormSection(
           id: 'sec_1',
@@ -349,6 +394,30 @@ class FormBuilderNotifier extends Notifier<FormBuilderState> {
           ],
         ),
       ],
+    );
+  }
+
+  void updateStyle({
+    String? themeId,
+    String? primaryColor,
+    String? backgroundColor,
+    String? fontFamily,
+    double? borderRadius,
+    String? inputStyle,
+    String? customCss,
+    bool clearThemeId = false,
+  }) {
+    state = state.copyWith(
+      style: state.style.copyWith(
+        themeId: themeId,
+        primaryColor: primaryColor,
+        backgroundColor: backgroundColor,
+        fontFamily: fontFamily,
+        borderRadius: borderRadius,
+        inputStyle: inputStyle,
+        customCss: customCss,
+        clearThemeId: clearThemeId,
+      ),
     );
   }
 
