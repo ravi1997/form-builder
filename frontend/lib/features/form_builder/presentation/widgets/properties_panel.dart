@@ -5,6 +5,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/design_system.dart';
 import '../../../../core/theme/tokens.dart';
 import '../../providers/form_builder_provider.dart';
+import '../../../../core/theme/css_injector.dart';
 
 class PropertiesPanel extends ConsumerStatefulWidget {
   const PropertiesPanel({super.key});
@@ -88,19 +89,7 @@ class _PropertiesPanelState extends ConsumerState<PropertiesPanel> {
     _syncSelection(builderState.sections, selectedId);
 
     if (selectedId == null) {
-      return Container(
-        decoration: AppSurfaceStyles.card(),
-        child: const Center(
-          child: Padding(
-            padding: EdgeInsets.all(AppSpacing.xl),
-            child: Text(
-              'Select a section, sub-section, or question to edit its properties.',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: AppColors.textMuted),
-            ),
-          ),
-        ),
-      );
+      return const _FormPropertiesEditor();
     }
 
     return Container(
@@ -1388,4 +1377,401 @@ Widget _toggleTile({
     value: value,
     onChanged: onChanged,
   );
+}
+
+class _FormPropertiesEditor extends ConsumerStatefulWidget {
+  const _FormPropertiesEditor();
+
+  @override
+  ConsumerState<_FormPropertiesEditor> createState() => _FormPropertiesEditorState();
+}
+
+class _FormPropertiesEditorState extends ConsumerState<_FormPropertiesEditor> {
+  late TextEditingController _nameController;
+  late TextEditingController _descController;
+  late TextEditingController _primaryColorController;
+  late TextEditingController _bgColorController;
+  late TextEditingController _fontFamilyController;
+  late TextEditingController _borderRadiusController;
+  late TextEditingController _cssController;
+
+  bool _isAdvancedMode = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final state = ref.read(formBuilderProvider);
+    _nameController = TextEditingController(text: state.name);
+    _descController = TextEditingController(text: state.description);
+    _primaryColorController = TextEditingController(text: state.style.primaryColor);
+    _bgColorController = TextEditingController(text: state.style.backgroundColor);
+    _fontFamilyController = TextEditingController(text: state.style.fontFamily);
+    _borderRadiusController = TextEditingController(text: state.style.borderRadius.toString());
+    _cssController = TextEditingController(text: state.style.customCss);
+    
+    // Inject initial custom CSS
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      injectCss(state.style.customCss);
+    });
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _descController.dispose();
+    _primaryColorController.dispose();
+    _bgColorController.dispose();
+    _fontFamilyController.dispose();
+    _borderRadiusController.dispose();
+    _cssController.dispose();
+    super.dispose();
+  }
+
+  void _applyPreset(String id, String name, String primary, String bg, String font, double radius, String input, String css) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Apply Preset?'),
+        content: Text('Are you sure you want to apply the "$name" preset? This will overwrite your current styling configuration.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              ref.read(formBuilderProvider.notifier).updateStyle(
+                themeId: id,
+                primaryColor: primary,
+                backgroundColor: bg,
+                fontFamily: font,
+                borderRadius: radius,
+                inputStyle: input,
+                customCss: css,
+              );
+              setState(() {
+                _primaryColorController.text = primary;
+                _bgColorController.text = bg;
+                _fontFamilyController.text = font;
+                _borderRadiusController.text = radius.toString();
+                _cssController.text = css;
+              });
+              injectCss(css);
+            },
+            child: const Text('Apply'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final builderState = ref.watch(formBuilderProvider);
+    final theme = Theme.of(context);
+
+    return DefaultTabController(
+      length: 2,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _sectionHeader(context, 'Global Form Properties'),
+          const SizedBox(height: AppSpacing.sm),
+          Text(
+            'Modify form settings, apply templates, and style the preview layout.',
+            style: theme.textTheme.bodySmall?.copyWith(color: AppColors.textMuted),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          const TabBar(
+            tabs: [
+              Tab(text: 'General'),
+              Tab(text: 'Style'),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.md),
+          Expanded(
+            child: TabBarView(
+              children: [
+                ListView(
+                  children: [
+                    _groupCard(
+                      context,
+                      title: 'Form Details',
+                      children: [
+                        TextField(
+                          controller: _nameController,
+                          decoration: const InputDecoration(labelText: 'Form Name'),
+                          onChanged: (val) {
+                            // update Form Name in provider (could create updateForm metadata method)
+                          },
+                        ),
+                        const SizedBox(height: AppSpacing.md),
+                        TextField(
+                          controller: _descController,
+                          decoration: const InputDecoration(labelText: 'Description'),
+                          minLines: 2,
+                          maxLines: 4,
+                          onChanged: (val) {
+                            // update Form Description
+                          },
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+                ListView(
+                  children: [
+                    SegmentedButton<bool>(
+                      segments: const [
+                        ButtonSegment(value: false, label: Text('Presets'), icon: Icon(Icons.palette_outlined)),
+                        ButtonSegment(value: true, label: Text('Advanced'), icon: Icon(Icons.tune_outlined)),
+                      ],
+                      selected: {_isAdvancedMode},
+                      onSelectionChanged: (val) {
+                        setState(() {
+                          _isAdvancedMode = val.first;
+                        });
+                      },
+                    ),
+                    const SizedBox(height: AppSpacing.md),
+                    if (!_isAdvancedMode)
+                      _groupCard(
+                        context,
+                        title: 'Style Presets',
+                        children: [
+                          _PresetCard(
+                            name: 'Sleek Dark',
+                            description: 'Premium high-contrast dark theme.',
+                            primaryColor: const Color(0xFFBB86FC),
+                            backgroundColor: const Color(0xFF121212),
+                            isSelected: builderState.style.themeId == 'sleek_dark',
+                            onTap: () => _applyPreset(
+                              'sleek_dark',
+                              'Sleek Dark',
+                              '#BB86FC',
+                              '#121212',
+                              'Inter',
+                              8.0,
+                              'filled',
+                              '/* Sleek Dark Presets */\n.form-container {\n  background-color: #121212;\n  color: #FFFFFF;\n}\n.form-input {\n  background-color: #1E1E1E;\n  color: #FFFFFF;\n  border-color: #BB86FC;\n}',
+                            ),
+                          ),
+                          const SizedBox(height: AppSpacing.sm),
+                          _PresetCard(
+                            name: 'Glassmorphism',
+                            description: 'Modern frosted-glass look.',
+                            primaryColor: const Color(0xFFE91E63),
+                            backgroundColor: const Color(0xFFF0F3F6),
+                            isSelected: builderState.style.themeId == 'glassmorphism',
+                            onTap: () => _applyPreset(
+                              'glassmorphism',
+                              'Glassmorphism',
+                              '#E91E63',
+                              '#F0F3F6',
+                              'Outfit',
+                              16.0,
+                              'outlined',
+                              '/* Glassmorphism Presets */\n.form-container {\n  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);\n}\n.form-card {\n  background: rgba(255, 255, 255, 0.25);\n  backdrop-filter: blur(4px);\n  -webkit-backdrop-filter: blur(4px);\n  border: 1px solid rgba(255, 255, 255, 0.18);\n  border-radius: 16px;\n}',
+                            ),
+                          ),
+                          const SizedBox(height: AppSpacing.sm),
+                          _PresetCard(
+                            name: 'Warm Professional',
+                            description: 'Clean corporate warmth.',
+                            primaryColor: const Color(0xFFFF9800),
+                            backgroundColor: const Color(0xFFFFFDE7),
+                            isSelected: builderState.style.themeId == 'warm_professional',
+                            onTap: () => _applyPreset(
+                              'warm_professional',
+                              'Warm Professional',
+                              '#FF9800',
+                              '#FFFDE7',
+                              'Roboto',
+                              4.0,
+                              'outlined',
+                              '/* Warm Professional Presets */\n.form-container {\n  background-color: #FFFDE7;\n  color: #3E2723;\n}\n.form-input {\n  border-color: #FF9800;\n}',
+                            ),
+                          ),
+                        ],
+                      )
+                    else ...[
+                      _groupCard(
+                        context,
+                        title: 'Theme Tokens',
+                        children: [
+                          TextField(
+                            controller: _primaryColorController,
+                            decoration: const InputDecoration(labelText: 'Primary Color (Hex)'),
+                            onChanged: (val) {
+                              ref.read(formBuilderProvider.notifier).updateStyle(primaryColor: val, clearThemeId: true);
+                            },
+                          ),
+                          const SizedBox(height: AppSpacing.md),
+                          TextField(
+                            controller: _bgColorController,
+                            decoration: const InputDecoration(labelText: 'Background Color (Hex)'),
+                            onChanged: (val) {
+                              ref.read(formBuilderProvider.notifier).updateStyle(backgroundColor: val, clearThemeId: true);
+                            },
+                          ),
+                          const SizedBox(height: AppSpacing.md),
+                          TextField(
+                            controller: _fontFamilyController,
+                            decoration: const InputDecoration(labelText: 'Font Family'),
+                            onChanged: (val) {
+                              ref.read(formBuilderProvider.notifier).updateStyle(fontFamily: val, clearThemeId: true);
+                            },
+                          ),
+                          const SizedBox(height: AppSpacing.md),
+                          Row(
+                            children: [
+                              const Text('Border Radius'),
+                              Expanded(
+                                child: Slider(
+                                  value: double.tryParse(_borderRadiusController.text) ?? 8.0,
+                                  min: 0.0,
+                                  max: 24.0,
+                                  divisions: 6,
+                                  label: _borderRadiusController.text,
+                                  onChanged: (val) {
+                                    setState(() {
+                                      _borderRadiusController.text = val.toString();
+                                    });
+                                    ref.read(formBuilderProvider.notifier).updateStyle(borderRadius: val, clearThemeId: true);
+                                  },
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: AppSpacing.md),
+                      _groupCard(
+                        context,
+                        title: 'Custom CSS (Advanced)',
+                        children: [
+                          const Text(
+                            'Warning: Custom CSS rule changes take effect live, but may distort the layout preview if invalid.',
+                            style: TextStyle(color: Colors.amber, fontSize: 11),
+                          ),
+                          const SizedBox(height: AppSpacing.sm),
+                          TextField(
+                            controller: _cssController,
+                            maxLines: null,
+                            minLines: 6,
+                            style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
+                            decoration: const InputDecoration(
+                              hintText: '.form-container {\n  border: 2px solid red;\n}',
+                              border: OutlineInputBorder(),
+                            ),
+                            onChanged: (val) {
+                              ref.read(formBuilderProvider.notifier).updateStyle(customCss: val, clearThemeId: true);
+                              injectCss(val);
+                            },
+                          ),
+                          const SizedBox(height: AppSpacing.sm),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.end,
+                            children: [
+                              TextButton.icon(
+                                  onPressed: () {
+                                    _cssController.clear();
+                                    ref.read(formBuilderProvider.notifier).updateStyle(customCss: '', clearThemeId: true);
+                                    injectCss('');
+                                  },
+                                  icon: const Icon(Icons.refresh),
+                                  label: const Text('Reset CSS'),
+                                ),
+                              ],
+                            )
+                          ],
+                        ),
+                      ],
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+  }
+}
+
+class _PresetCard extends StatelessWidget {
+  final String name;
+  final String description;
+  final Color primaryColor;
+  final Color backgroundColor;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  const _PresetCard({
+    required this.name,
+    required this.description,
+    required this.primaryColor,
+    required this.backgroundColor,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(10),
+      child: Container(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        decoration: BoxDecoration(
+          color: isSelected ? AppColors.brandPrimarySoft.withValues(alpha: 0.2) : Colors.transparent,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: isSelected ? AppColors.brandPrimary : AppColors.builderDivider,
+            width: isSelected ? 2 : 1,
+          ),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 32,
+              height: 32,
+              decoration: BoxDecoration(
+                color: backgroundColor,
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(color: AppColors.builderDivider),
+              ),
+              child: Center(
+                child: Container(
+                  width: 12,
+                  height: 12,
+                  decoration: BoxDecoration(
+                    color: primaryColor,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: AppSpacing.md),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    name,
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    description,
+                    style: TextStyle(color: AppColors.textMuted, fontSize: 11),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
