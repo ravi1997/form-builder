@@ -1,33 +1,39 @@
-# Agent Core Instructions (Low-Token Spec)
+# Agent Core Instructions
 
-Minimize token ingestion by reading only this compressed spec for standard operations.
+This folder is the documentation index for the project. Treat the docs as reference material and keep them stable unless the user explicitly asks to revise the documentation itself.
 
----
+## How to Use This Folder
+- Read this file first when you need platform rules, architecture references, or roadmap context.
+- Treat the rest of `/home/ravi/workspace/form-builder/docs` as read-only specification unless asked to edit docs.
+- Use codebase-memory MCP for backend/frontend symbol lookups when a docs question points to implementation detail.
 
-## 1. Stack & Paths
-* **BE**: Py3.11+ / Flask 3 / Gunicorn / Celery 5 / PyMongo / Redis 7 / ES 8 / NetworkX. Paths: `backend/app/routes/`, `services/`, `engines/`, `workers/`.
-* **FE**: Flutter 3 / Riverpod 2 / Drift SQLite. Paths: `frontend/lib/features/`, `core/offline/`.
+## Do This First
+- Identify whether the question is about docs, backend, or frontend behavior.
+- Check the most relevant spec file before guessing from memory.
+- If the question touches implementation, verify the code path in the owning repo.
+- Reuse the existing graph index unless you know the source changed materially.
 
-## 2. Multi-Tenancy & Safety
-* **DB Scoping**: Queries MUST filter `{"org_id": current_org_id, "is_deleted": False}`.
-* **Privileges**: Plugins run via subprocess dropping rights to `nobody`. Blacklist: `os.system`, `subprocess`, `importlib`, `ctypes`, `socket`.
-* **API Validation**: Enforce Pydantic schemas on input/output payload scopes.
+## Canonical Paths
+- Docs: `/home/ravi/workspace/form-builder/docs`
+- Backend: `/home/ravi/workspace/docker/apps/form-backend`
+- Frontend: `/home/ravi/workspace/frontend`
 
-## 3. Core Mechanics Shorthand
-* **Git-Forms**: Schemas saved as commits in `form_commits`. Branches HEAD in `forms`. 3-way merges handle version updates.
-* **DAG Coder**: NetworkX validates cycles, computes `topological_sort`. Celery executes steps, caches in `analysis_results`.
-* **Offline Sync**: Client caches to Drift. Sync calls delta API `/sync?last_synced_at=TS`. Delete via `tombstones`.
-* **Visual UI**: Frontend parses `component_schemas` JSON properties to render native Material 3 widgets at runtime.
-* **Testing**: Python `pytest` + `mongomock` / Flutter unit + golden tests.
+## Cross-Repo Coordination
+- If a docs item maps to code, verify the current backend/frontend implementation before assuming the doc is still current.
+- Reindex only when source content changes materially or the user explicitly requests a refresh.
 
-## 4. Key Collection Fields
-* `users`: `email` (UQ), `password_hash`, `status: pending_approval|active|suspended`.
-* `form_responses`: `answers: {q_id: {value, display_value, file_ids}}`.
-* `analyses`: `graph: {nodes: [{id, type, properties}], edges: [{from_node, to_node}]}`.
-* `dashboards`: `canvas: {width, height, widgets: [{id, type, position, size, data_binding}]}`.
-* `tombstones`: `entity_type: forms|responses|projects`, `entity_id`, `deleted_at`.
+## Common Failure Modes
+- Docs drift from implementation. Verify the owning repo before treating a spec as current.
+- Older notes may conflict with newer repo instructions. Prefer the repository AGENTS file when there is a mismatch.
+- Pure docs questions do not need code edits. Do not over-escalate them into implementation work.
 
-## 5. Strict Operational Constraints
-* **DO NOT EDIT DOCS**: The documentation files inside `/docs/` are finalized architectural specifications. DO NOT modify, overwrite, or edit these documents under any scenario.
-* **Git Status**: Use standard Git commands (`git status`, `git diff`, `git log`) to verify code edits, monitor execution progress, and track overall project implementation status.
+## Skill Router
+- Use repo-specific backend/frontend skills when the question is implementation-oriented.
+- Use planning/review skills when the task is architectural, risky, or cross-repo.
+- Use codebase-memory tools first when you need structure, callers, or dependency paths.
 
+## Relevant References
+- Backend tool and MCP routing notes now live in [`backend-mcp.json`](/home/ravi/workspace/form-builder/docs/backend-mcp.json) and [`backend-check-agent-tools.sh`](/home/ravi/workspace/form-builder/docs/backend-check-agent-tools.sh).
+- Frontend tool and MCP routing notes now live in [`frontend-mcp.json`](/home/ravi/workspace/form-builder/docs/frontend-mcp.json), [`frontend-check-agent-tools.sh`](/home/ravi/workspace/form-builder/docs/frontend-check-agent-tools.sh), and [`frontend-watch-ridp-changes.sh`](/home/ravi/workspace/form-builder/docs/frontend-watch-ridp-changes.sh).
+- Frontend skill files now live under [`frontend-skills/`](/home/ravi/workspace/form-builder/docs/frontend-skills).
+- Use this file mainly as the entry point for product/architecture context, not as a place for implementation rules.

@@ -52,7 +52,7 @@ An agent working on this project must map tasks to the following directory bound
 
 When starting a task, the executing agent MUST:
 1. **Analyze Context**: Parse [CONTEXT.md](file:///home/ravi/workspace/form-builder/docs/CONTEXT.md) and [01_ARCHITECTURE.md](file:///home/ravi/workspace/form-builder/docs/01_ARCHITECTURE.md) to align variables names.
-2. **Review Target Phase**: Locate the current phase file under `/docs/phases/` and identify dependencies.
+2. **Review Target Phase**: Locate the relevant phase file under `/docs/phases/` only if the task is phase-related or implementation-planning related.
 3. **Follow the Test Pyramid**:
    - Write backend unit tests in `/tests` using `pytest` and `mongomock` before writing endpoints code (TDD approach).
    - Write Flutter widget tests to verify dynamic component rendering using mock schemas.
