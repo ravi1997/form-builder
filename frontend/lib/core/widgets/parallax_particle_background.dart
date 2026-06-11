@@ -14,7 +14,8 @@ class ParallaxParticleBackground extends StatefulWidget {
   });
 
   @override
-  State<ParallaxParticleBackground> createState() => _ParallaxParticleBackgroundState();
+  State<ParallaxParticleBackground> createState() =>
+      _ParallaxParticleBackgroundState();
 }
 
 class _ParallaxParticleBackgroundState extends State<ParallaxParticleBackground>
@@ -116,7 +117,7 @@ class _ParticlePainter extends CustomPainter {
       // Calculate dynamic Z depth based on scrollOffset
       // As scroll increases, particles get closer (decrease effective Z)
       double effectiveZ = particle.z - (scrollOffset * 0.002 * particle.speed);
-      
+
       // Wrap depth around if it passes the camera (Z <= 0.2) or gets too far
       while (effectiveZ <= 0.2) {
         effectiveZ += 4.8;
@@ -132,25 +133,27 @@ class _ParticlePainter extends CustomPainter {
 
       // Project 3D coordinate onto 2D viewport
       final double scaleFactor = 1.5 / effectiveZ;
-      final double projectedX = center.dx + 
-          (particle.x + driftX) * maxDimension * scaleFactor + 
+      final double projectedX =
+          center.dx +
+          (particle.x + driftX) * maxDimension * scaleFactor +
           mouseDx * (5.0 - effectiveZ) * 0.4;
-      final double projectedY = center.dy + 
-          (particle.y + driftY) * maxDimension * scaleFactor + 
+      final double projectedY =
+          center.dy +
+          (particle.y + driftY) * maxDimension * scaleFactor +
           mouseDy * (5.0 - effectiveZ) * 0.4;
 
       // Calculate fade and size based on depth layer
       final double currentSize = particle.size * scaleFactor;
       final double opacity = ((5.0 - effectiveZ) / 5.0).clamp(0.0, 1.0);
 
-      paint.color = glowColor.withOpacity(opacity * 0.4);
+      paint.color = _withAlpha(glowColor, opacity * 0.4);
 
       // Draw particle glow halo
       canvas.drawCircle(
         Offset(projectedX, projectedY),
         currentSize * 2.5,
         Paint()
-          ..color = glowColor.withOpacity(opacity * 0.15)
+          ..color = _withAlpha(glowColor, opacity * 0.15)
           ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8),
       );
 
@@ -166,4 +169,9 @@ class _ParticlePainter extends CustomPainter {
         oldDelegate.time != time ||
         oldDelegate.glowColor != glowColor;
   }
+}
+
+Color _withAlpha(Color color, double opacity) {
+  final clampedOpacity = opacity.clamp(0.0, 1.0);
+  return color.withAlpha((clampedOpacity * 255).round());
 }

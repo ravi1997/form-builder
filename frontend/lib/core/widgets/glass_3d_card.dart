@@ -1,6 +1,7 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import '../../core/theme/theme_presets.dart';
+import '../theme/tokens.dart';
 
 class Glass3DCard extends StatefulWidget {
   final Widget child;
@@ -62,10 +63,7 @@ class _Glass3DCardState extends State<Glass3DCard> {
         duration: const Duration(milliseconds: 250),
         curve: Curves.easeOutBack, // Playful bounce on hover scaling
         child: TweenAnimationBuilder<Offset>(
-          tween: Tween<Offset>(
-            begin: Offset.zero,
-            end: Offset(_tiltX, _tiltY),
-          ),
+          tween: Tween<Offset>(begin: Offset.zero, end: Offset(_tiltX, _tiltY)),
           duration: const Duration(milliseconds: 150),
           curve: Curves.easeOutCubic, // Smooth damping on mouse move
           builder: (context, tilt, child) {
@@ -80,10 +78,13 @@ class _Glass3DCardState extends State<Glass3DCard> {
                 width: widget.width,
                 height: widget.height,
                 decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(24),
+                  borderRadius: BorderRadius.circular(AppRadius.xxl),
                   boxShadow: [
                     BoxShadow(
-                      color: widget.theme.glowColor.withOpacity(_isHovered ? 0.35 : 0.12),
+                      color: _withAlpha(
+                        widget.theme.glowColor,
+                        _isHovered ? 0.35 : 0.12,
+                      ),
                       blurRadius: _isHovered ? 36 : 16,
                       spreadRadius: _isHovered ? 6 : 1,
                       offset: Offset(0, _isHovered ? 12 : 6),
@@ -91,24 +92,33 @@ class _Glass3DCardState extends State<Glass3DCard> {
                   ],
                 ),
                 child: ClipRRect(
-                  borderRadius: BorderRadius.circular(24),
+                  borderRadius: BorderRadius.circular(AppRadius.xxl),
                   child: BackdropFilter(
                     filter: ImageFilter.blur(sigmaX: 16.0, sigmaY: 16.0),
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 40),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.xxxl,
+                        vertical: AppSpacing.huge,
+                      ),
                       decoration: BoxDecoration(
                         color: widget.theme.cardBg,
-                        borderRadius: BorderRadius.circular(24),
+                        borderRadius: BorderRadius.circular(AppRadius.xxl),
                         border: Border.all(
-                          color: widget.theme.cardBorder.withOpacity(_isHovered ? 0.8 : 0.35),
+                          color: _withAlpha(
+                            widget.theme.cardBorder,
+                            _isHovered ? 0.8 : 0.35,
+                          ),
                           width: 1.5,
                         ),
                         gradient: LinearGradient(
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
                           colors: [
-                            Colors.white.withOpacity(_isHovered ? 0.10 : 0.06),
-                            Colors.white.withOpacity(0.01),
+                            _withAlpha(
+                              widget.theme.glowColor,
+                              _isHovered ? 0.10 : 0.06,
+                            ),
+                            _withAlpha(widget.theme.cardBg, 0.01),
                           ],
                         ),
                       ),
@@ -125,3 +135,7 @@ class _Glass3DCardState extends State<Glass3DCard> {
   }
 }
 
+Color _withAlpha(Color color, double opacity) {
+  final clampedOpacity = opacity.clamp(0.0, 1.0);
+  return color.withAlpha((clampedOpacity * 255).round());
+}

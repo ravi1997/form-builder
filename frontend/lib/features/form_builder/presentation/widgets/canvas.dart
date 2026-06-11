@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/design_system.dart';
+import '../../../../core/theme/tokens.dart';
 import '../../providers/form_builder_provider.dart';
 
 class BuilderCanvas extends ConsumerWidget {
@@ -17,153 +21,291 @@ class BuilderCanvas extends ConsumerWidget {
     final builderState = ref.watch(formBuilderProvider);
     final theme = Theme.of(context);
 
-    return Card(
-      elevation: 2,
+    return Container(
+      decoration: AppSurfaceStyles.card(),
       child: Padding(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(AppSpacing.lg),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  'Form Canvas',
-                  style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Canvas',
+                        style: theme.textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.xs),
+                      Text(
+                        'Compose sections, sub-sections, and questions in a single workspace.',
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-                ElevatedButton.icon(
+                FilledButton.icon(
                   onPressed: () {
                     ref.read(formBuilderProvider.notifier).addSection();
                   },
-                  icon: const Icon(Icons.add),
-                  label: const Text('Add Section'),
+                  icon: const Icon(Icons.add, size: 18),
+                  label: const Text('Add section'),
                 ),
               ],
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: AppSpacing.lg),
             Expanded(
-              child: ListView.builder(
+              child: ListView.separated(
+                padding: EdgeInsets.zero,
                 itemCount: builderState.sections.length,
+                separatorBuilder: (context, index) =>
+                    const SizedBox(height: AppSpacing.md),
                 itemBuilder: (context, sIndex) {
                   final section = builderState.sections[sIndex];
-                  final isSelectedSec = builderState.selectedElementId == section.id;
+                  final isSelectedSec =
+                      builderState.selectedElementId == section.id;
 
-                  return Card(
-                    color: isSelectedSec ? theme.colorScheme.primaryContainer.withOpacity(0.3) : null,
-                    margin: const EdgeInsets.symmetric(vertical: 8.0),
-                    shape: RoundedRectangleBorder(
-                      side: BorderSide(
-                        color: isSelectedSec ? theme.colorScheme.primary : Colors.grey[300]!,
-                        width: isSelectedSec ? 2 : 1,
-                      ),
-                      borderRadius: BorderRadius.circular(8),
+                  return Container(
+                    decoration: AppSurfaceStyles.card(
+                      selected: isSelectedSec,
+                      tint: isSelectedSec
+                          ? AppColors.brandPrimarySoft
+                          : AppColors.surfaceCard,
                     ),
                     child: Padding(
-                      padding: const EdgeInsets.all(12.0),
+                      padding: const EdgeInsets.all(AppSpacing.lg),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Expanded(
                                 child: ListTile(
+                                  contentPadding: EdgeInsets.zero,
                                   title: Text(
                                     section.title,
-                                    style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                                    style: theme.textTheme.titleMedium
+                                        ?.copyWith(fontWeight: FontWeight.w800),
                                   ),
-                                  subtitle: Text(section.description.isNotEmpty ? section.description : 'No description'),
+                                  subtitle: Text(
+                                    section.description.isNotEmpty
+                                        ? section.description
+                                        : 'No description',
+                                    style: theme.textTheme.bodySmall?.copyWith(
+                                      color: AppColors.textMuted,
+                                    ),
+                                  ),
                                   onTap: () {
-                                    ref.read(formBuilderProvider.notifier).selectElement(section.id);
+                                    ref
+                                        .read(formBuilderProvider.notifier)
+                                        .selectElement(section.id);
                                   },
                                 ),
                               ),
-                              ElevatedButton.icon(
+                              const SizedBox(width: AppSpacing.sm),
+                              FilledButton.tonalIcon(
                                 onPressed: () {
-                                  ref.read(formBuilderProvider.notifier).addSubSection(section.id);
+                                  ref
+                                      .read(formBuilderProvider.notifier)
+                                      .addSubSection(section.id);
                                 },
-                                icon: const Icon(Icons.add, size: 16),
+                                icon: const Icon(Icons.add, size: 18),
                                 label: const Text('Sub-section'),
                               ),
                             ],
                           ),
-                          const Divider(),
+                          const SizedBox(height: AppSpacing.md),
+                          Container(height: 1, color: AppColors.builderDivider),
+                          const SizedBox(height: AppSpacing.md),
                           ...section.subSections.map((subSec) {
-                            final isSelectedSub = builderState.selectedElementId == subSec.id;
+                            final isSelectedSub =
+                                builderState.selectedElementId == subSec.id;
                             final isActiveSub = activeSubSectionId == subSec.id;
 
-                            return Card(
-                              color: isSelectedSub ? theme.colorScheme.secondaryContainer.withOpacity(0.3) : null,
-                              margin: const EdgeInsets.symmetric(vertical: 6.0, horizontal: 8.0),
-                              shape: RoundedRectangleBorder(
-                                side: BorderSide(
-                                  color: isActiveSub
-                                      ? theme.colorScheme.primary
-                                      : (isSelectedSub ? theme.colorScheme.secondary : Colors.grey[200]!),
-                                  width: isActiveSub ? 2 : 1,
-                                ),
-                                borderRadius: BorderRadius.circular(6),
+                            return Padding(
+                              padding: const EdgeInsets.only(
+                                bottom: AppSpacing.sm,
                               ),
-                              child: Padding(
-                                padding: const EdgeInsets.all(8.0),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    ListTile(
-                                      title: Text(
-                                        subSec.title,
-                                        style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
-                                      ),
-                                      trailing: isActiveSub
-                                          ? const Chip(
-                                              label: Text('Active Target', style: TextStyle(fontSize: 10)),
-                                              visualDensity: VisualDensity.compact,
+                              child: Container(
+                                decoration: AppSurfaceStyles.insetCard(
+                                  selected: isSelectedSub || isActiveSub,
+                                  tint: isActiveSub
+                                      ? AppColors.brandPrimarySoft
+                                      : AppColors.surfaceCardAlt,
+                                ),
+                                child: Padding(
+                                  padding: const EdgeInsets.all(AppSpacing.md),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        children: [
+                                          Expanded(
+                                            child: ListTile(
+                                              contentPadding: EdgeInsets.zero,
+                                              title: Text(
+                                                subSec.title,
+                                                style: theme
+                                                    .textTheme
+                                                    .titleSmall
+                                                    ?.copyWith(
+                                                      fontWeight:
+                                                          FontWeight.w700,
+                                                    ),
+                                              ),
+                                              subtitle: Text(
+                                                subSec.repeatable
+                                                    ? 'Repeatable sub-section'
+                                                    : 'Single sub-section',
+                                                style: theme.textTheme.bodySmall
+                                                    ?.copyWith(
+                                                      color:
+                                                          AppColors.textMuted,
+                                                    ),
+                                              ),
+                                              onTap: () {
+                                                ref
+                                                    .read(
+                                                      formBuilderProvider
+                                                          .notifier,
+                                                    )
+                                                    .selectElement(subSec.id);
+                                                onSubSectionActivated(
+                                                  subSec.id,
+                                                );
+                                              },
+                                            ),
+                                          ),
+                                          const SizedBox(width: AppSpacing.sm),
+                                          if (isActiveSub)
+                                            const Chip(
+                                              label: Text('Active'),
+                                              visualDensity:
+                                                  VisualDensity.compact,
+                                              materialTapTargetSize:
+                                                  MaterialTapTargetSize
+                                                      .shrinkWrap,
                                             )
-                                          : OutlinedButton(
-                                              onPressed: () => onSubSectionActivated(subSec.id),
-                                              child: const Text('Set Active', style: TextStyle(fontSize: 10)),
+                                          else
+                                            OutlinedButton(
+                                              onPressed: () =>
+                                                  onSubSectionActivated(
+                                                    subSec.id,
+                                                  ),
+                                              child: const Text('Set active'),
                                             ),
-                                      onTap: () {
-                                        ref.read(formBuilderProvider.notifier).selectElement(subSec.id);
-                                        onSubSectionActivated(subSec.id);
-                                      },
-                                    ),
-                                    const SizedBox(height: 8),
-                                    if (subSec.questions.isEmpty)
-                                      const Padding(
-                                        padding: EdgeInsets.symmetric(vertical: 12.0),
-                                        child: Center(
+                                        ],
+                                      ),
+                                      const SizedBox(height: AppSpacing.sm),
+                                      if (subSec.questions.isEmpty)
+                                        Container(
+                                          width: double.infinity,
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: AppSpacing.lg,
+                                            vertical: AppSpacing.xl,
+                                          ),
+                                          decoration:
+                                              AppSurfaceStyles.insetCard(
+                                                tint: AppColors.surfaceCard,
+                                              ),
                                           child: Text(
-                                            'Empty Sub-section. Add components from the left panel.',
-                                            style: TextStyle(fontStyle: FontStyle.italic, fontSize: 12),
+                                            'Empty sub-section. Add fields from the library.',
+                                            textAlign: TextAlign.center,
+                                            style: theme.textTheme.bodySmall
+                                                ?.copyWith(
+                                                  fontStyle: FontStyle.italic,
+                                                  color: AppColors.textMuted,
+                                                ),
                                           ),
-                                        ),
-                                      )
-                                    else
-                                      ...subSec.questions.map((q) {
-                                        final isSelectedQ = builderState.selectedElementId == q.id;
+                                        )
+                                      else
+                                        Column(
+                                          children: subSec.questions.map((q) {
+                                            final isSelectedQ =
+                                                builderState
+                                                    .selectedElementId ==
+                                                q.id;
 
-                                        return Card(
-                                          color: isSelectedQ ? theme.colorScheme.tertiaryContainer.withOpacity(0.2) : Colors.grey[50],
-                                          margin: const EdgeInsets.symmetric(vertical: 4.0),
-                                          shape: RoundedRectangleBorder(
-                                            side: BorderSide(
-                                              color: isSelectedQ ? theme.colorScheme.tertiary : Colors.grey[300]!,
-                                            ),
-                                            borderRadius: BorderRadius.circular(4),
-                                          ),
-                                          child: ListTile(
-                                            leading: const Icon(Icons.drag_indicator),
-                                            title: Text(q.label),
-                                            subtitle: Text(q.description.isNotEmpty ? q.description : 'Type: ${q.type}'),
-                                            trailing: q.required ? const Text('* Required', style: TextStyle(color: Colors.red, fontSize: 10)) : null,
-                                            onTap: () {
-                                              ref.read(formBuilderProvider.notifier).selectElement(q.id);
-                                            },
-                                          ),
-                                        );
-                                      }),
-                                  ],
+                                            return Padding(
+                                              padding: const EdgeInsets.only(
+                                                bottom: AppSpacing.xs,
+                                              ),
+                                              child: Container(
+                                                decoration:
+                                                    AppSurfaceStyles.insetCard(
+                                                      selected: isSelectedQ,
+                                                      tint: isSelectedQ
+                                                          ? AppColors
+                                                                .brandPrimarySoft
+                                                          : AppColors
+                                                                .surfaceCard,
+                                                    ),
+                                                child: ListTile(
+                                                  leading: const Icon(
+                                                    Icons.drag_indicator,
+                                                    color: AppColors.textMuted,
+                                                  ),
+                                                  title: Text(
+                                                    q.label,
+                                                    style: theme
+                                                        .textTheme
+                                                        .bodyMedium
+                                                        ?.copyWith(
+                                                          fontWeight:
+                                                              FontWeight.w600,
+                                                        ),
+                                                  ),
+                                                  subtitle: Text(
+                                                    q.description.isNotEmpty
+                                                        ? q.description
+                                                        : 'Type: ${q.type}',
+                                                    style: theme
+                                                        .textTheme
+                                                        .bodySmall
+                                                        ?.copyWith(
+                                                          color: AppColors
+                                                              .textMuted,
+                                                        ),
+                                                  ),
+                                                  trailing: q.required
+                                                      ? const Chip(
+                                                          label: Text(
+                                                            'Required',
+                                                          ),
+                                                          labelStyle: TextStyle(
+                                                            fontSize: 11,
+                                                          ),
+                                                          visualDensity:
+                                                              VisualDensity
+                                                                  .compact,
+                                                          materialTapTargetSize:
+                                                              MaterialTapTargetSize
+                                                                  .shrinkWrap,
+                                                        )
+                                                      : null,
+                                                  onTap: () {
+                                                    ref
+                                                        .read(
+                                                          formBuilderProvider
+                                                              .notifier,
+                                                        )
+                                                        .selectElement(q.id);
+                                                  },
+                                                ),
+                                              ),
+                                            );
+                                          }).toList(),
+                                        ),
+                                    ],
+                                  ),
                                 ),
                               ),
                             );

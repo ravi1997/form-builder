@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/tokens.dart';
 import '../providers/canvas_state_provider.dart';
 import '../widgets/draggable_widget_wrapper.dart';
 import 'canvas_grid.dart';
@@ -7,10 +9,7 @@ import 'canvas_grid.dart';
 class DashboardCanvas extends ConsumerWidget {
   final String dashboardId;
 
-  const DashboardCanvas({
-    super.key,
-    required this.dashboardId,
-  });
+  const DashboardCanvas({super.key, required this.dashboardId});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -34,11 +33,15 @@ class DashboardCanvas extends ConsumerWidget {
           width: state.canvasWidth,
           height: state.canvasHeight,
           decoration: BoxDecoration(
-            color: canvasBgColor,
+            color: canvasBgColor == const Color(0xFFF5F5F5)
+                ? AppColors.surfaceCardAlt
+                : canvasBgColor,
+            borderRadius: BorderRadius.circular(AppRadius.lg),
+            border: Border.all(color: AppColors.borderSubtle),
             boxShadow: const [
               BoxShadow(
-                color: Colors.black26,
-                blurRadius: 10,
+                color: Color(0x140F172A),
+                blurRadius: 14,
                 offset: Offset(0, 4),
               ),
             ],

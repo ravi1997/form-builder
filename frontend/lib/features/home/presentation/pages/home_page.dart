@@ -2,6 +2,9 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/design_system.dart';
+import '../../../../core/theme/tokens.dart';
 import '../../../../core/theme/theme_presets.dart';
 import '../../../../core/widgets/glass_3d_card.dart';
 import '../../../../core/widgets/parallax_particle_background.dart';
@@ -21,19 +24,22 @@ class _HomePageState extends ConsumerState<HomePage> {
   final List<Map<String, dynamic>> _launcherItems = [
     {
       'title': 'Form Editor',
-      'description': 'Build robust DAG structures, version forms, and handle conflicts.',
+      'description':
+          'Build robust DAG structures, version forms, and handle conflicts.',
       'icon': Icons.alt_route_rounded,
       'path': '/form-builder',
     },
     {
       'title': 'Dashboard Builder',
-      'description': 'Design free-form visual canvases with real-time analytics integrations.',
+      'description':
+          'Design free-form visual canvases with real-time analytics integrations.',
       'icon': Icons.dashboard_customize_rounded,
       'path': '/dashboard-builder/default_db',
     },
     {
       'title': 'Offline Sync Center',
-      'description': 'Monitor SQLite caching and synchronize response data safely.',
+      'description':
+          'Monitor SQLite caching and synchronize response data safely.',
       'icon': Icons.cloud_sync_rounded,
       'path': '/',
     },
@@ -61,6 +67,23 @@ class _HomePageState extends ConsumerState<HomePage> {
   @override
   Widget build(BuildContext context) {
     final activeTheme = ref.watch(themePresetProvider);
+    final responsive = AppResponsiveInfo.fromWidth(
+      MediaQuery.of(context).size.width,
+    );
+    final headerPadding = EdgeInsets.symmetric(
+      horizontal: responsive.isMobile
+          ? AppSpacing.lg
+          : responsive.isTablet
+          ? AppSpacing.xl
+          : responsive.isLaptop
+          ? AppSpacing.xxl
+          : AppSpacing.huge,
+      vertical: responsive.isMobile ? AppSpacing.lg : AppSpacing.xl,
+    );
+    final clusterPadding = EdgeInsets.symmetric(
+      horizontal: responsive.isMobile ? AppSpacing.lg : AppSpacing.xl,
+      vertical: responsive.isMobile ? AppSpacing.sm : AppSpacing.md,
+    );
 
     return Scaffold(
       body: MouseRegion(
@@ -113,7 +136,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                   children: [
                     // Header Area
                     Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 24),
+                      padding: headerPadding,
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
@@ -122,13 +145,16 @@ class _HomePageState extends ConsumerState<HomePage> {
                             children: [
                               Text(
                                 'Form Builder Engine',
-                                style: activeTheme.headingStyle.copyWith(fontSize: 28),
+                                style: activeTheme.headingStyle.copyWith(
+                                  fontSize: 28,
+                                ),
                               ),
-                              const SizedBox(height: 4),
+                              const SizedBox(height: AppSpacing.xs),
                               Text(
                                 'Next-Gen Workflow & Analytics Studio',
                                 style: activeTheme.bodyStyle.copyWith(
-                                  color: activeTheme.bodyStyle.color?.withOpacity(0.6),
+                                  color: activeTheme.bodyStyle.color
+                                      ?.withOpacity(0.6),
                                 ),
                               ),
                             ],
@@ -136,28 +162,38 @@ class _HomePageState extends ConsumerState<HomePage> {
                           Row(
                             children: [
                               IconButton(
-                                icon: const Icon(Icons.settings_suggest_outlined),
+                                icon: const Icon(
+                                  Icons.settings_suggest_outlined,
+                                ),
                                 color: activeTheme.glowColor,
                                 onPressed: () {},
                               ),
-                              const SizedBox(width: 8),
+                              const SizedBox(width: AppSpacing.sm),
                               ElevatedButton.icon(
                                 style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.white.withOpacity(0.08),
+                                  backgroundColor: AppColors.surfaceCard
+                                      .withOpacity(0.12),
                                   foregroundColor: activeTheme.bodyStyle.color,
                                   side: BorderSide(
-                                    color: activeTheme.cardBorder.withOpacity(0.2),
+                                    color: AppColors.borderSubtle.withOpacity(
+                                      0.35,
+                                    ),
                                   ),
                                   shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
+                                    borderRadius: BorderRadius.circular(
+                                      AppRadius.md,
+                                    ),
                                   ),
                                 ),
                                 onPressed: () => context.go('/login'),
-                                icon: const Icon(Icons.logout_rounded, size: 18),
+                                icon: const Icon(
+                                  Icons.logout_rounded,
+                                  size: 18,
+                                ),
                                 label: const Text('Logout'),
                               ),
                             ],
-                          )
+                          ),
                         ],
                       ),
                     ),
@@ -178,11 +214,17 @@ class _HomePageState extends ConsumerState<HomePage> {
                             onSelectedItemChanged: (index) {},
                             childDelegate: ListWheelChildBuilderDelegate(
                               builder: (context, index) {
-                                if (index < 0 || index >= _launcherItems.length) return null;
+                                if (index < 0 ||
+                                    index >= _launcherItems.length) {
+                                  return null;
+                                }
                                 final item = _launcherItems[index];
                                 return Center(
                                   child: SizedBox(
-                                    width: (MediaQuery.of(context).size.width * 0.9).clamp(280.0, 480.0),
+                                    width:
+                                        (MediaQuery.of(context).size.width *
+                                                0.9)
+                                            .clamp(280.0, 480.0),
                                     height: 280,
                                     child: _build3DCard(
                                       title: item['title'],
@@ -209,51 +251,74 @@ class _HomePageState extends ConsumerState<HomePage> {
 
                     // Theme dynamic settings / customization presets row
                     Padding(
-                      padding: const EdgeInsets.only(bottom: 24),
+                      padding: EdgeInsets.only(
+                        bottom: responsive.isMobile
+                            ? AppSpacing.lg
+                            : AppSpacing.xl,
+                      ),
                       child: Center(
                         child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                          padding: clusterPadding,
                           decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.04),
-                            borderRadius: BorderRadius.circular(28),
+                            color: AppColors.surfaceCard.withOpacity(0.12),
+                            borderRadius: BorderRadius.circular(AppRadius.full),
                             border: Border.all(
-                              color: Colors.white.withOpacity(0.08),
+                              color: AppColors.borderSubtle.withOpacity(0.35),
                             ),
                           ),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(Icons.palette_outlined, color: activeTheme.glowColor, size: 20),
-                              const SizedBox(width: 12),
+                              Icon(
+                                Icons.palette_outlined,
+                                color: activeTheme.glowColor,
+                                size: 20,
+                              ),
+                              const SizedBox(width: AppSpacing.md),
                               Text(
                                 'Visual Customizer:',
                                 style: TextStyle(
-                                  color: activeTheme.bodyStyle.color?.withOpacity(0.8),
+                                  color: activeTheme.bodyStyle.color
+                                      ?.withOpacity(0.8),
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
-                              const SizedBox(width: 16),
+                              const SizedBox(width: AppSpacing.lg),
                               Row(
-                                children: ThemePresetType.values.map((presetType) {
+                                children: ThemePresetType.values.map((
+                                  presetType,
+                                ) {
                                   final preset = themePresets[presetType]!;
-                                  final isSelected = activeTheme.type == presetType;
+                                  final isSelected =
+                                      activeTheme.type == presetType;
                                   return Padding(
-                                    padding: const EdgeInsets.symmetric(horizontal: 6),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: AppSpacing.xs,
+                                    ),
                                     child: ChoiceChip(
                                       label: Text(preset.name),
                                       selected: isSelected,
                                       onSelected: (val) {
                                         if (val) {
-                                          ref.read(themePresetProvider.notifier).setPreset(presetType);
+                                          ref
+                                              .read(
+                                                themePresetProvider.notifier,
+                                              )
+                                              .setPreset(presetType);
                                         }
                                       },
-                                      backgroundColor: Colors.transparent,
-                                      selectedColor: activeTheme.glowColor.withOpacity(0.2),
+                                      backgroundColor: AppColors.surfaceCard
+                                          .withOpacity(0.12),
+                                      selectedColor: activeTheme.glowColor
+                                          .withOpacity(0.2),
                                       labelStyle: TextStyle(
                                         color: isSelected
                                             ? activeTheme.glowColor
-                                            : activeTheme.bodyStyle.color?.withOpacity(0.6),
-                                        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                                            : activeTheme.bodyStyle.color
+                                                  ?.withOpacity(0.6),
+                                        fontWeight: isSelected
+                                            ? FontWeight.bold
+                                            : FontWeight.normal,
                                       ),
                                     ),
                                   );
@@ -293,10 +358,10 @@ class _HomePageState extends ConsumerState<HomePage> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Container(
-                padding: const EdgeInsets.all(12),
+                padding: const EdgeInsets.all(AppSpacing.lg),
                 decoration: BoxDecoration(
                   color: theme.glowColor.withOpacity(0.12),
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(AppRadius.lg),
                 ),
                 child: Icon(icon, color: theme.glowColor, size: 28),
               ),
@@ -308,15 +373,12 @@ class _HomePageState extends ConsumerState<HomePage> {
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: AppSpacing.sm),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                title,
-                style: theme.headingStyle.copyWith(fontSize: 20),
-              ),
-              const SizedBox(height: 8),
+              Text(title, style: theme.headingStyle.copyWith(fontSize: 20)),
+              const SizedBox(height: AppSpacing.sm),
               Text(
                 description,
                 style: theme.bodyStyle.copyWith(

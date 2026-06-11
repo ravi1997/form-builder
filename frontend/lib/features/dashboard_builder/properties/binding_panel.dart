@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/tokens.dart';
 import '../models/widget_model.dart';
 import '../providers/canvas_state_provider.dart';
 
@@ -26,30 +28,50 @@ class BindingPanel extends ConsumerWidget {
 
     // Mock output nodes for selected analysis
     final List<Map<String, String>> mockNodes = [
-      {'id': 'node_1', 'name': 'Total Count Indicator (KPI)', 'type': 'kpi_value'},
-      {'id': 'node_2', 'name': 'Categorical Chart Data (Chart)', 'type': 'chart_data'},
+      {
+        'id': 'node_1',
+        'name': 'Total Count Indicator (KPI)',
+        'type': 'kpi_value',
+      },
+      {
+        'id': 'node_2',
+        'name': 'Categorical Chart Data (Chart)',
+        'type': 'chart_data',
+      },
       {'id': 'node_3', 'name': 'Tabular List Report (Table)', 'type': 'table'},
     ];
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(AppSpacing.lg),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'DATA BINDING',
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, letterSpacing: 1.1),
+          Text(
+            'Data binding',
+            style: Theme.of(context).textTheme.labelLarge?.copyWith(
+              fontWeight: FontWeight.w800,
+              letterSpacing: 1.0,
+            ),
           ),
           const Divider(),
-          const SizedBox(height: 8),
+          const SizedBox(height: AppSpacing.sm),
 
           // Analysis Selection
-          const Text('Analysis Source', style: TextStyle(fontWeight: FontWeight.w500)),
-          const SizedBox(height: 4),
+          Text(
+            'Analysis source',
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              fontWeight: FontWeight.w600,
+              color: AppColors.textSecondary,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.xs),
           DropdownButtonFormField<String>(
             value: binding?.analysisId,
             hint: const Text('Select Analysis'),
-            decoration: const InputDecoration(border: OutlineInputBorder(), isDense: true),
+            decoration: const InputDecoration(
+              border: OutlineInputBorder(),
+              isDense: true,
+            ),
             items: mockAnalyses.map((item) {
               return DropdownMenuItem<String>(
                 value: item['id'],
@@ -63,18 +85,29 @@ class BindingPanel extends ConsumerWidget {
                 refreshMode: currentMode,
                 refreshIntervalSeconds: binding?.refreshIntervalSeconds,
               );
-              ref.read(canvasStateProvider(dashboardId).notifier).updateWidgetBinding(widget.id, newBinding);
+              ref
+                  .read(canvasStateProvider(dashboardId).notifier)
+                  .updateWidgetBinding(widget.id, newBinding);
             },
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: AppSpacing.lg),
 
           // Output Node Selection
-          const Text('Output Node', style: TextStyle(fontWeight: FontWeight.w500)),
-          const SizedBox(height: 4),
+          Text(
+            'Output node',
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              fontWeight: FontWeight.w600,
+              color: AppColors.textSecondary,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.xs),
           DropdownButtonFormField<String>(
             value: binding?.nodeId,
             hint: const Text('Select Output Node'),
-            decoration: const InputDecoration(border: OutlineInputBorder(), isDense: true),
+            decoration: const InputDecoration(
+              border: OutlineInputBorder(),
+              isDense: true,
+            ),
             items: mockNodes.map((item) {
               return DropdownMenuItem<String>(
                 value: item['id'],
@@ -88,23 +121,37 @@ class BindingPanel extends ConsumerWidget {
                 refreshMode: currentMode,
                 refreshIntervalSeconds: binding?.refreshIntervalSeconds,
               );
-              ref.read(canvasStateProvider(dashboardId).notifier).updateWidgetBinding(widget.id, newBinding);
+              ref
+                  .read(canvasStateProvider(dashboardId).notifier)
+                  .updateWidgetBinding(widget.id, newBinding);
             },
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: AppSpacing.lg),
 
           // Refresh Mode Selection
-          const Text('Refresh Mode', style: TextStyle(fontWeight: FontWeight.w500)),
-          const SizedBox(height: 4),
+          Text(
+            'Refresh mode',
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              fontWeight: FontWeight.w600,
+              color: AppColors.textSecondary,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.xs),
           RadioListTile<String>(
-            title: const Text('With Dashboard', style: TextStyle(fontSize: 13)),
+            title: Text(
+              'With dashboard',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
             value: 'with_dashboard',
             groupValue: currentMode,
             dense: true,
             onChanged: (val) => _updateMode(ref, val!),
           ),
           RadioListTile<String>(
-            title: const Text('Independent', style: TextStyle(fontSize: 13)),
+            title: Text(
+              'Independent',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
             value: 'independent',
             groupValue: currentMode,
             dense: true,
@@ -112,9 +159,13 @@ class BindingPanel extends ConsumerWidget {
           ),
           if (currentMode == 'independent') ...[
             Padding(
-              padding: const EdgeInsets.only(left: 32.0, right: 16.0),
+              padding: const EdgeInsets.only(
+                left: AppSpacing.xxxl,
+                right: AppSpacing.lg,
+              ),
               child: TextFormField(
-                initialValue: (binding?.refreshIntervalSeconds ?? 30).toString(),
+                initialValue: (binding?.refreshIntervalSeconds ?? 30)
+                    .toString(),
                 keyboardType: TextInputType.number,
                 decoration: const InputDecoration(
                   labelText: 'Interval (seconds)',
@@ -129,13 +180,15 @@ class BindingPanel extends ConsumerWidget {
                     refreshMode: 'independent',
                     refreshIntervalSeconds: parsed,
                   );
-                  ref.read(canvasStateProvider(dashboardId).notifier).updateWidgetBinding(widget.id, newBinding);
+                  ref
+                      .read(canvasStateProvider(dashboardId).notifier)
+                      .updateWidgetBinding(widget.id, newBinding);
                 },
               ),
             ),
           ],
           RadioListTile<String>(
-            title: const Text('Never', style: TextStyle(fontSize: 13)),
+            title: Text('Never', style: Theme.of(context).textTheme.bodySmall),
             value: 'never',
             groupValue: currentMode,
             dense: true,
@@ -154,6 +207,8 @@ class BindingPanel extends ConsumerWidget {
       refreshMode: mode,
       refreshIntervalSeconds: binding?.refreshIntervalSeconds ?? 30,
     );
-    ref.read(canvasStateProvider(dashboardId).notifier).updateWidgetBinding(widget.id, newBinding);
+    ref
+        .read(canvasStateProvider(dashboardId).notifier)
+        .updateWidgetBinding(widget.id, newBinding);
   }
 }

@@ -1,13 +1,11 @@
 import 'package:flutter/material.dart';
+import '../../../core/theme/app_colors.dart';
 import '../models/widget_model.dart';
 
 class DividerWidget extends StatelessWidget {
   final WidgetModel widget;
 
-  const DividerWidget({
-    super.key,
-    required this.widget,
-  });
+  const DividerWidget({super.key, required this.widget});
 
   @override
   Widget build(BuildContext context) {
@@ -25,18 +23,12 @@ class DividerWidget extends StatelessWidget {
 
     if (direction == 'vertical') {
       return Center(
-        child: Container(
-          width: thickness,
-          color: color,
-        ),
+        child: Container(width: thickness, color: color),
       );
     }
 
     return Center(
-      child: Container(
-        height: thickness,
-        color: color,
-      ),
+      child: Container(height: thickness, color: color),
     );
   }
 
@@ -45,7 +37,7 @@ class DividerWidget extends StatelessWidget {
       final clean = hex.replaceAll('#', '');
       return Color(int.parse('FF$clean', radix: 16));
     } catch (_) {
-      return Colors.grey;
+      return AppColors.borderSubtle;
     }
   }
 }

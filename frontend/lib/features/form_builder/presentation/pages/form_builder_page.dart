@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../../../core/theme/theme_presets.dart';
+
+import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/design_system.dart';
+import '../../../../core/theme/tokens.dart';
+import '../../../../core/widgets/responsive.dart';
 import '../widgets/canvas.dart';
 import '../widgets/elements_panel.dart';
 import '../widgets/properties_panel.dart';
@@ -18,69 +22,252 @@ class _FormBuilderPageState extends ConsumerState<FormBuilderPage> {
 
   @override
   Widget build(BuildContext context) {
-    final activeTheme = ref.watch(themePresetProvider);
-
     return Scaffold(
+      backgroundColor: AppColors.builderBackground,
       appBar: AppBar(
-        title: const Text('Dynamic Form Workspace'),
+        title: const Text('Form Builder'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => context.go('/'),
         ),
-        backgroundColor: activeTheme.brightness == Brightness.dark
-            ? Colors.black.withOpacity(0.4)
-            : activeTheme.seedColor.withOpacity(0.1),
-        foregroundColor: activeTheme.brightness == Brightness.dark ? Colors.white : Colors.black,
-        elevation: 0,
         actions: [
           IconButton(
             icon: const Icon(Icons.help_outline),
             onPressed: () {
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
-                  content: Text('Select active target sub-section first, then insert fields.'),
+                  content: Text(
+                    'Select a sub-section, then add fields from the library.',
+                  ),
                 ),
               );
             },
           ),
+          const SizedBox(width: AppSpacing.xs),
         ],
       ),
-      body: Container(
-        width: double.infinity,
-        height: double.infinity,
-        decoration: BoxDecoration(
+      body: DecoratedBox(
+        decoration: const BoxDecoration(
           gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: activeTheme.bgGradient,
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [AppColors.surfaceCanvas, AppColors.surfaceCanvasAlt],
           ),
         ),
-        padding: const EdgeInsets.all(16.0),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // Left Widget Library
-            SizedBox(
-              width: 280,
-              child: ElementsPanel(activeSubSectionId: _activeSubSectionId),
+        child: ResponsiveLayout(
+          builder: (context, responsive, constraints) {
+            final padding = AppSurfaceStyles.pagePadding(responsive);
+            final libraryWidth = AppSurfaceStyles.builderLibraryWidth(
+              responsive,
+            );
+            final propertiesWidth = AppSurfaceStyles.builderPropertiesWidth(
+              responsive,
+            );
+            final gap = AppSurfaceStyles.builderGap(responsive);
+
+            final workspace = responsive.isMobile
+                ? _buildMobileWorkspace(
+                    context: context,
+                    padding: padding,
+                    gap: gap,
+                  )
+                : responsive.isTablet
+                ? _buildTabletWorkspace(
+                    context: context,
+                    padding: padding,
+                    gap: gap,
+                    libraryWidth: libraryWidth,
+                  )
+                : _buildDesktopWorkspace(
+                    context: context,
+                    padding: padding,
+                    gap: gap,
+                    libraryWidth: libraryWidth,
+                    propertiesWidth: propertiesWidth,
+                  );
+
+            return SafeArea(
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxWidth: responsive.isWide
+                        ? AppDimensions.builderWideMaxWidth
+                        : constraints.maxWidth,
+                  ),
+                  child: workspace,
+                ),
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMobileWorkspace({
+    required BuildContext context,
+    required EdgeInsets padding,
+    required double gap,
+  }) {
+    return ListView(
+      padding: padding,
+      children: [
+        _buildWorkspaceHeader(context),
+        SizedBox(height: gap),
+        SizedBox(
+          height: 340,
+          child: ElementsPanel(activeSubSectionId: _activeSubSectionId),
+        ),
+        SizedBox(height: gap),
+        SizedBox(
+          height: 620,
+          child: BuilderCanvas(
+            activeSubSectionId: _activeSubSectionId,
+            onSubSectionActivated: (id) {
+              setState(() {
+                _activeSubSectionId = id;
+              });
+            },
+          ),
+        ),
+        SizedBox(height: gap),
+        SizedBox(height: 420, child: const PropertiesPanel()),
+      ],
+    );
+  }
+
+  Widget _buildTabletWorkspace({
+    required BuildContext context,
+    required EdgeInsets padding,
+    required double gap,
+    required double libraryWidth,
+  }) {
+    return Padding(
+      padding: padding,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _buildWorkspaceHeader(context),
+          SizedBox(height: gap),
+          Expanded(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                SizedBox(
+                  width: libraryWidth,
+                  child: ElementsPanel(activeSubSectionId: _activeSubSectionId),
+                ),
+                SizedBox(width: gap),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Expanded(
+                        child: BuilderCanvas(
+                          activeSubSectionId: _activeSubSectionId,
+                          onSubSectionActivated: (id) {
+                            setState(() {
+                              _activeSubSectionId = id;
+                            });
+                          },
+                        ),
+                      ),
+                      SizedBox(height: gap),
+                      const SizedBox(height: 360, child: PropertiesPanel()),
+                    ],
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(width: 16),
-            // Center Canvas Editor
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDesktopWorkspace({
+    required BuildContext context,
+    required EdgeInsets padding,
+    required double gap,
+    required double libraryWidth,
+    required double propertiesWidth,
+  }) {
+    return Padding(
+      padding: padding,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _buildWorkspaceHeader(context),
+          SizedBox(height: gap),
+          Expanded(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                SizedBox(
+                  width: libraryWidth,
+                  child: ElementsPanel(activeSubSectionId: _activeSubSectionId),
+                ),
+                SizedBox(width: gap),
+                Expanded(
+                  child: BuilderCanvas(
+                    activeSubSectionId: _activeSubSectionId,
+                    onSubSectionActivated: (id) {
+                      setState(() {
+                        _activeSubSectionId = id;
+                      });
+                    },
+                  ),
+                ),
+                SizedBox(width: gap),
+                SizedBox(
+                  width: propertiesWidth,
+                  child: const PropertiesPanel(),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildWorkspaceHeader(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Card(
+      margin: EdgeInsets.zero,
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
             Expanded(
-              child: BuilderCanvas(
-                activeSubSectionId: _activeSubSectionId,
-                onSubSectionActivated: (id) {
-                  setState(() {
-                    _activeSubSectionId = id;
-                  });
-                },
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Form authoring workspace',
+                    style: theme.textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.xs),
+                  Text(
+                    'Use the library to add fields, the canvas to organize sections, and the properties panel to edit the selected element.',
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ],
               ),
             ),
-            const SizedBox(width: 16),
-            // Right Properties Inspector
-            const SizedBox(
-              width: 320,
-              child: PropertiesPanel(),
+            const SizedBox(width: AppSpacing.lg),
+            Chip(
+              avatar: const Icon(Icons.track_changes, size: 18),
+              label: Text('Active: $_activeSubSectionId'),
+              visualDensity: VisualDensity.compact,
+              side: const BorderSide(color: AppColors.borderSubtle),
+              backgroundColor: AppColors.surfaceCardAlt,
             ),
           ],
         ),
