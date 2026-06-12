@@ -1,0 +1,96 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Agent Coordination Memory",
+  "description": "Shared memory system for multi-agent collaboration",
+  "type": "object",
+  "properties": {
+    "agents": {
+      "type": "object",
+      "description": "Registered agents",
+      "patternProperties": {
+        "^[a-zA-Z0-9_-]+$": {
+          "type": "object",
+          "properties": {
+            "id": {"type": "string"},
+            "name": {"type": "string"},
+            "type": {"type": "string", "enum": ["primary", "subagent", "external"]},
+            "provider": {"type": "string"},
+            "model": {"type": "string"},
+            "capabilities": {
+              "type": "array",
+              "items": {"type": "string"}
+            },
+            "status": {"type": "string", "enum": ["active", "idle", "busy", "offline"]},
+            "last_seen": {"type": "string", "format": "date-time"},
+            "current_task": {"type": "string"},
+            "shared_memory_access": {"type": "boolean"}
+          },
+          "required": ["id", "name", "type", "provider", "status", "last_seen"]
+        }
+      }
+    },
+    "tasks": {
+      "type": "object",
+      "description": "Active and completed tasks",
+      "patternProperties": {
+        "^[a-zA-Z0-9_-]+$": {
+          "type": "object",
+          "properties": {
+            "id": {"type": "string"},
+            "title": {"type": "string"},
+            "description": {"type": "string"},
+            "status": {"type": "string", "enum": ["pending", "assigned", "in_progress", "completed", "failed"]},
+            "priority": {"type": "string", "enum": ["low", "medium", "high", "critical"]},
+            "assigned_to": {"type": "array", "items": {"type": "string"}},
+            "created_by": {"type": "string"},
+            "created_at": {"type": "string", "format": "date-time"},
+            "updated_at": {"type": "string", "format": "date-time"},
+            "completed_at": {"type": "string", "format": "date-time"},
+            "dependencies": {"type": "array", "items": {"type": "string"}},
+            "context": {"type": "object"},
+            "results": {"type": "object"},
+            "collaboration_mode": {"type": "string", "enum": ["sequential", "parallel", "consultative"]}
+          },
+          "required": ["id", "title", "status", "created_by", "created_at"]
+        }
+      }
+    },
+    "shared_context": {
+      "type": "object",
+      "description": "Shared context and knowledge",
+      "properties": {
+        "project_state": {"type": "object"},
+        "current_goals": {"type": "array", "items": {"type": "string"}},
+        "decisions": {"type": "array", "items": {"type": "object"}},
+        "shared_variables": {"type": "object"},
+        "session_memory": {"type": "object"}
+      }
+    },
+    "communication_channels": {
+      "type": "object",
+      "description": "Communication channels between agents",
+      "patternProperties": {
+        "^[a-zA-Z0-9_-]+$": {
+          "type": "object",
+          "properties": {
+            "name": {"type": "string"},
+            "type": {"type": "string", "enum": ["broadcast", "direct", "topic"]},
+            "participants": {"type": "array", "items": {"type": "string"}},
+            "messages": {"type": "array", "items": {"type": "object"}}
+          }
+        }
+      }
+    },
+    "system_config": {
+      "type": "object",
+      "properties": {
+        "max_concurrent_agents": {"type": "number"},
+        "task_timeout": {"type": "number"},
+        "heartbeat_interval": {"type": "number"},
+        "cleanup_interval": {"type": "number"},
+        "enable_consultation": {"type": "boolean"},
+        "enable_task_distribution": {"type": "boolean"}
+      }
+    }
+  }
+}

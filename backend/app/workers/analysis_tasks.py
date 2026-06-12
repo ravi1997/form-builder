@@ -1,23 +1,19 @@
 import os
 import datetime
-import pandas as pd
 from celery import Celery
 from bson import ObjectId
 from app.extensions import mongo
 from app.engines.analysis_engine import (
-    validate_and_sort_dag,
-    GraphCycleException,
-    load_data,
-    to_records,
-    evaluate_filter,
-    evaluate_aggregation,
-    evaluate_projection,
-    evaluate_formula
+    execute_analysis_graph,
+    GraphCycleException
 )
 
-# Setup Celery
-redis_uri = os.environ.get("REDIS_URI", "redis://localhost:6379/0")
-celery_app = Celery("tasks", broker=redis_uri, backend=redis_uri)
+# Get Celery app from shared config
+from .celery_config import get_celery_app
+celery_app = get_celery_app()
+
+# Import task status service
+from app.services.task_status_service import TaskStatusService
 
 def _utcnow_iso():
     return datetime.datetime.utcnow().isoformat()
@@ -35,22 +31,39 @@ def _safe_result_payload(status, error=None, **extra):
     return payload
 
 @celery_app.task(name="app.workers.analysis_tasks.run_analysis_graph_task")
-def run_analysis_graph_task(analysis_run_id):
+def run_analysis_graph_task(analysis_run_id, task_record_id=None):
     """
     Asynchronously executes an analysis pipeline graph.
     """
+    # Update task status if provided
+    if task_record_id:
+        TaskStatusService.update_task_status(
+            task_record_id, 
+            "running",
+            progress=10,
+            metadata={"analysis_run_id": analysis_run_id}
+        )
+    
     run_oid = _to_object_id(analysis_run_id)
     run_doc = mongo.db.analysis_runs.find_one({"_id": run_oid})
     if not run_doc:
         return _safe_result_payload("failed", f"Analysis run {analysis_run_id} not found.", run_id=str(run_oid))
     
     try:
-        # Update status to running after the run exists.
+        # Update status to running
         mongo.db.analysis_runs.update_one(
             {"_id": run_oid},
-            {"$set": {"status": "running", "updated_at": _utcnow_iso()}}
+            {"$set": {"status": "running", "started_at": _utcnow_iso()}}
         )
-            
+        
+        # Update task status progress
+        if task_record_id:
+            TaskStatusService.update_task_status(
+                task_record_id, 
+                "running",
+                progress=20
+            )
+        
         analysis_id = run_doc.get("analysis_id")
         analysis_oid = _to_object_id(analysis_id)
         
@@ -58,39 +71,247 @@ def run_analysis_graph_task(analysis_run_id):
         analysis_doc = mongo.db.analyses.find_one({"_id": analysis_oid, "is_deleted": {"$ne": True}})
         if not analysis_doc:
             raise ValueError(f"Analysis {analysis_id} not found.")
-            
+        
         graph = analysis_doc.get("graph", {})
-        nodes = graph.get("nodes", [])
-        edges = graph.get("edges", [])
         analysis_org_id = analysis_doc.get("org_id")
         
-        # Build networkx graph for sorting and validation
-        node_map = {n["id"]: n for n in nodes}
+        # Build execution context
+        context = {
+            "org_id": str(analysis_org_id) if analysis_org_id else None,
+            "analysis_id": str(analysis_oid),
+            "run_id": str(run_oid)
+        }
         
-        # Build graph dictionary for validate_and_sort_dag
-        graph_dict = {}
-        for node in nodes:
-            node_id = node["id"]
-            # Find dependencies
-            deps = []
-            for edge in edges:
-                if edge["to_node"] == node_id:
-                    deps.append(edge["from_node"])
-            graph_dict[node_id] = deps
-            
-        # Validate and sort
+        # Execute the analysis graph
         try:
-            sorted_node_ids = validate_and_sort_dag(graph_dict)
+            execution_result = execute_analysis_graph(graph, context)
+            
+            # Update task status progress
+            if task_record_id:
+                TaskStatusService.update_task_status(
+                    task_record_id, 
+                    "running",
+                    progress=50
+                )
         except GraphCycleException as e:
             mongo.db.analysis_runs.update_one(
                 {"_id": run_oid},
                 {"$set": {
                     "status": "failed",
                     "error": str(e),
-                    "updated_at": _utcnow_iso()
+                    "completed_at": _utcnow_iso()
                 }}
             )
             return _safe_result_payload("failed", str(e), run_id=str(run_oid))
+        
+        # Process execution results
+        node_outputs = execution_result.get("node_outputs", {})
+        node_errors = execution_result.get("node_errors", {})
+        node_statuses = execution_result.get("node_statuses", {})
+        
+        # Store results for each node
+        result_ids = {}
+        for node_id, outputs in node_outputs.items():
+            if node_statuses.get(node_id) != "success":
+                continue
+                
+            # Determine output type based on node type
+            node = next((n for n in graph.get("nodes", []) if n["id"] == node_id), None)
+            if not node:
+                continue
+                
+            node_type = node.get("type")
+            output_data = outputs.get("out", {})
+            
+            # Determine output type
+            if node_type in ["table_output"]:
+                output_type = "table"
+            elif node_type in ["kpi_value"]:
+                output_type = "value"
+            elif node_type in ["bar_chart_data", "line_chart_data", "pie_chart_data"]:
+                output_type = "chart_data"
+            else:
+                output_type = "dataframe"
+            
+            # Calculate row count and column definitions
+            row_count = 0
+            column_definitions = []
+            
+            if isinstance(output_data, dict):
+                if output_data.get("type") == "table":
+                    row_count = output_data.get("row_count", 0)
+                    column_definitions = output_data.get("columns", [])
+                elif output_data.get("type") in ["kpi", "chart_data"]:
+                    row_count = 1
+                    column_definitions = [{"name": "value", "type": "float"}]
+                elif "rows" in output_data:
+                    row_count = len(output_data.get("rows", []))
+                    # Auto-detect columns
+                    if output_data.get("rows"):
+                        first_row = output_data["rows"][0]
+                        column_definitions = [
+                            {"name": key, "type": type(value).__name__}
+                            for key, value in first_row.items()
+                        ]
+            elif isinstance(output_data, list):
+                row_count = len(output_data)
+                if output_data:
+                    first_row = output_data[0]
+                    column_definitions = [
+                        {"name": key, "type": type(value).__name__}
+                        for key, value in first_row.items()
+                        if not key.startswith("_")
+                    ]
+            
+            # Create result document
+            result_doc = {
+                "run_id": run_oid,
+                "analysis_id": analysis_oid,
+                "node_id": node_id,
+                "org_id": analysis_org_id,
+                "output_type": output_type,
+                "data": output_data,
+                "row_count": row_count,
+                "column_definitions": column_definitions,
+                "created_at": _utcnow_iso()
+            }
+            
+            # Insert result and store ID
+            result = mongo.db.analysis_results.insert_one(result_doc)
+            result_ids[node_id] = result.inserted_id
+        
+        # Determine overall run status
+        all_statuses = node_statuses.values()
+        error_count = sum(1 for status in all_statuses if status == "error")
+        blocked_count = sum(1 for status in all_statuses if status == "blocked")
+        success_count = sum(1 for status in all_statuses if status == "success")
+        
+        if error_count > 0:
+            run_status = "failed"
+            error_summary = f"{error_count} node(s) failed execution"
+        elif blocked_count > 0 and success_count == 0:
+            run_status = "failed"
+            error_summary = "All nodes were blocked due to dependency failures"
+        elif blocked_count > 0:
+            run_status = "partial"
+            error_summary = f"{blocked_count} node(s) were blocked, {success_count} completed successfully"
+        else:
+            run_status = "completed"
+            error_summary = None
+        
+        # Update run document
+        update_data = {
+            "status": run_status,
+            "completed_at": _utcnow_iso(),
+            "node_statuses": node_statuses,
+            "result_ids": result_ids
+        }
+        
+        if error_summary:
+            update_data["error_summary"] = error_summary
+        
+        mongo.db.analysis_runs.update_one(
+            {"_id": run_oid},
+            {"$set": update_data}
+        )
+        
+        # Update analysis status
+        analysis_update = {
+            "status": "idle" if run_status in ["completed", "partial"] else "error",
+            "updated_at": _utcnow_iso()
+        }
+        
+        if run_status in ["completed", "partial"]:
+            analysis_update["last_run_id"] = run_oid
+        
+        mongo.db.analyses.update_one(
+            {"_id": analysis_oid},
+            {"$set": analysis_update}
+        )
+        
+        return _safe_result_payload(
+            run_status,
+            error_summary,
+            run_id=str(run_oid),
+            node_statuses=node_statuses,
+            node_errors=node_errors,
+            result_ids={k: str(v) for k, v in result_ids.items()}
+        )
+        
+    except Exception as e:
+        error_msg = str(e)
+        mongo.db.analysis_runs.update_one(
+            {"_id": run_oid},
+            {"$set": {
+                "status": "failed",
+                "error": error_msg,
+                "completed_at": _utcnow_iso()
+            }}
+        )
+        
+        # Update analysis status to error
+        if analysis_oid:
+            mongo.db.analyses.update_one(
+                {"_id": analysis_oid},
+                {"$set": {
+                    "status": "error",
+                    "updated_at": _utcnow_iso()
+                }}
+            )
+        
+        return _safe_result_payload("failed", error_msg, run_id=str(run_oid))
+
+@celery_app.task(name="app.workers.analysis_tasks.schedule_analysis_execution")
+def schedule_analysis_execution(analysis_id):
+    """
+    Scheduled task for executing analyses with scheduled execution mode.
+    """
+    analysis_oid = _to_object_id(analysis_id)
+    
+    # Fetch analysis
+    analysis = mongo.db.analyses.find_one({
+        "_id": analysis_oid,
+        "is_deleted": {"$ne": True},
+        "status": {"$ne": "running"}
+    })
+    
+    if not analysis:
+        return _safe_result_payload("skipped", f"Analysis {analysis_id} not found or not available")
+    
+    # Check if scheduled mode is enabled
+    execution_modes = analysis.get("execution_modes", [])
+    if "scheduled" not in execution_modes:
+        return _safe_result_payload("skipped", f"Analysis {analysis_id} does not have scheduled execution enabled")
+    
+    # Create and run analysis
+    run_doc = {
+        "analysis_id": analysis_oid,
+        "org_id": analysis.get("org_id"),
+        "trigger": "scheduled",
+        "triggered_by": None,  # System trigger
+        "status": "queued",
+        "started_at": None,
+        "completed_at": None,
+        "celery_task_id": None,
+        "node_statuses": {},
+        "error_summary": None,
+        "result_ids": {},
+        "created_at": _utcnow_iso()
+    }
+    
+    result = mongo.db.analysis_runs.insert_one(run_doc)
+    run_id = result.inserted_id
+    
+    # Queue the execution task
+    task = run_analysis_graph_task.delay(str(run_id))
+    
+    # Update run with task ID
+    mongo.db.analysis_runs.update_one(
+        {"_id": run_id},
+        {"$set": {"celery_task_id": task.id}}
+    )
+    
+    return _safe_result_payload("queued", None, run_id=str(run_id), task_id=task.id)
         except ValueError as e:
             mongo.db.analysis_runs.update_one(
                 {"_id": run_oid},
@@ -361,6 +582,22 @@ def run_analysis_graph_task(analysis_run_id):
                 "node_errors": node_errors
             }}
         )
+        
+        # Update final task status
+        if task_record_id:
+            TaskStatusService.update_task_status(
+                task_record_id,
+                "completed" if run_status == "completed" else "failed",
+                progress=100,
+                error=run_error,
+                result={
+                    "run_status": run_status,
+                    "run_id": str(run_oid),
+                    "node_statuses": node_statuses,
+                    "node_errors": node_errors
+                }
+            )
+        
         return _safe_result_payload(
             run_status,
             run_error,
@@ -375,7 +612,88 @@ def run_analysis_graph_task(analysis_run_id):
             {"$set": {
                 "status": "failed",
                 "error": str(e),
-                "updated_at": _utcnow_iso()
+                "completed_at": _utcnow_iso()
             }}
         )
+        
+        # Update task status on error
+        if task_record_id:
+            TaskStatusService.update_task_status(
+                task_record_id,
+                "failed",
+                error=str(e)
+            )
+        
         return _safe_result_payload("failed", str(e), run_id=str(run_oid))
+
+
+@celery_app.task(name="app.workers.analysis_tasks.run_scheduled_analyses_task")
+def run_scheduled_analyses_task():
+    """
+    Run all analyses that are scheduled for execution.
+    """
+    try:
+        # Find analyses with scheduled execution mode
+        scheduled_analyses = list(mongo.db.analyses.find({
+            "execution_modes": "scheduled",
+            "schedule": {"$exists": True, "$ne": None},
+            "status": "idle",
+            "is_deleted": {"$ne": True}
+        }))
+        
+        triggered_count = 0
+        
+        for analysis in scheduled_analyses:
+            # Check if analysis should run now (simplified cron check)
+            should_run = _should_run_scheduled_analysis(analysis)
+            
+            if should_run:
+                # Create analysis run
+                run_data = {
+                    "analysis_id": analysis["_id"],
+                    "org_id": analysis.get("org_id"),
+                    "trigger": "scheduled",
+                    "triggered_by": None,  # System-triggered
+                    "status": "queued",
+                    "created_at": _utcnow_iso()
+                }
+                
+                result = mongo.db.analysis_runs.insert_one(run_data)
+                
+                # Queue the analysis execution
+                run_analysis_graph_task.delay(str(result.inserted_id))
+                triggered_count += 1
+        
+        return _safe_result_payload(
+            "completed",
+            triggered_count=triggered_count
+        )
+        
+    except Exception as e:
+        return _safe_result_payload("failed", str(e))
+
+
+def _should_run_scheduled_analysis(analysis: Dict) -> bool:
+    """
+    Check if a scheduled analysis should run now.
+    This is a simplified implementation - in production, you'd use a proper cron parser.
+    """
+    schedule = analysis.get("schedule")
+    if not schedule:
+        return False
+    
+    # Get last run time
+    last_run_id = analysis.get("last_run_id")
+    if last_run_id:
+        last_run = mongo.db.analysis_runs.find_one({"_id": last_run_id})
+        if last_run:
+            last_run_time = last_run.get("created_at")
+            # For now, just run if it's been more than 5 minutes since last run
+            # In production, this would use the actual cron schedule
+            if last_run_time:
+                last_run_dt = datetime.datetime.fromisoformat(last_run_time.replace('Z', '+00:00'))
+                now = datetime.datetime.utcnow()
+                delta = now - last_run_dt
+                return delta.total_seconds() >= 300  # 5 minutes
+    
+    return True

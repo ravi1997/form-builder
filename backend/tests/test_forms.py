@@ -387,3 +387,278 @@ def test_custom_css_validation(client):
     })
     assert res.status_code == 200
 
+
+def test_notifications_settings_validation(client):
+    # Create Form
+    res = client.post("/api/internal/v1/forms", json={
+        "name": "Validation Form",
+        "project_id": str(ObjectId()),
+        "org_id": str(ObjectId())
+    })
+    form_id = res.get_json()["data"]["form_id"]
+
+    # 1. Valid notifications configuration
+    valid_schema = {
+        "settings": {
+            "notifications": {
+                "email_alerts": {
+                    "enabled": True,
+                    "trigger_event": "on_submission",
+                    "recipients": ["user@example.com", "admin@company.org"],
+                    "include_payload": True,
+                    "include_attachments": False
+                },
+                "webhook_delivery": {
+                    "enabled": True,
+                    "url": "https://api.external.com/v1/webhook",
+                    "secret": "my-secret-key-12345",
+                    "content_type": "application/json"
+                },
+                "internal_recipients": {
+                    "enabled": True,
+                    "user_ids": [str(ObjectId()), str(ObjectId())],
+                    "team_ids": ["team_a", "team_b"]
+                },
+                "failure_handling": {
+                    "retry_attempts": 3,
+                    "alert_owner_on_failure": True
+                }
+            }
+        },
+        "sections": []
+    }
+    res = client.post(f"/api/internal/v1/forms/{form_id}/commits", json={
+        "branch": "main",
+        "schema": valid_schema,
+        "message": "Valid notifications schema"
+    })
+    assert res.status_code == 200
+
+    # 2. Invalid Email: Bad format
+    bad_email_schema = {
+        "settings": {
+            "notifications": {
+                "email_alerts": {
+                    "enabled": True,
+                    "recipients": ["not-an-email"]
+                }
+            }
+        },
+        "sections": []
+    }
+    res = client.post(f"/api/internal/v1/forms/{form_id}/commits", json={
+        "branch": "main",
+        "schema": bad_email_schema,
+        "message": "Bad email"
+    })
+    assert res.status_code == 400
+    assert "Invalid email address" in res.get_json()["message"]
+
+    # 3. Invalid Email: Too many emails (> 20)
+    too_many_emails_schema = {
+        "settings": {
+            "notifications": {
+                "email_alerts": {
+                    "enabled": True,
+                    "recipients": [f"user{i}@example.com" for i in range(21)]
+                }
+            }
+        },
+        "sections": []
+    }
+    res = client.post(f"/api/internal/v1/forms/{form_id}/commits", json={
+        "branch": "main",
+        "schema": too_many_emails_schema,
+        "message": "Too many emails"
+    })
+    assert res.status_code == 400
+    assert "cannot contain more than 20" in res.get_json()["message"]
+
+    # 4. Invalid Webhook: SSRF Localhost
+    ssrf_schema = {
+        "settings": {
+            "notifications": {
+                "webhook_delivery": {
+                    "enabled": True,
+                    "url": "http://localhost/endpoint"
+                }
+            }
+        },
+        "sections": []
+    }
+    res = client.post(f"/api/internal/v1/forms/{form_id}/commits", json={
+        "branch": "main",
+        "schema": ssrf_schema,
+        "message": "SSRF check"
+    })
+    assert res.status_code == 400
+    assert "cannot point to a local hostname" in res.get_json()["message"]
+
+    # 5. Invalid Webhook: Local IP
+    ssrf_ip_schema = {
+        "settings": {
+            "notifications": {
+                "webhook_delivery": {
+                    "enabled": True,
+                    "url": "http://192.168.1.100/endpoint"
+                }
+            }
+        },
+        "sections": []
+    }
+    res = client.post(f"/api/internal/v1/forms/{form_id}/commits", json={
+        "branch": "main",
+        "schema": ssrf_ip_schema,
+        "message": "SSRF IP check"
+    })
+    assert res.status_code == 400
+    assert "cannot point to a private IP" in res.get_json()["message"]
+
+    # 6. Invalid Webhook: Non HTTP/HTTPS
+    ftp_schema = {
+        "settings": {
+            "notifications": {
+                "webhook_delivery": {
+                    "enabled": True,
+                    "url": "ftp://files.example.com"
+                }
+            }
+        },
+        "sections": []
+    }
+    res = client.post(f"/api/internal/v1/forms/{form_id}/commits", json={
+        "branch": "main",
+        "schema": ftp_schema,
+        "message": "FTP URL check"
+    })
+    assert res.status_code == 400
+    assert "must use http:// or https://" in res.get_json()["message"]
+
+    # 7. Invalid Webhook: Secret too long
+    long_secret_schema = {
+        "settings": {
+            "notifications": {
+                "webhook_delivery": {
+                    "enabled": True,
+                    "url": "https://api.example.com",
+                    "secret": "s" * 129
+                }
+            }
+        },
+        "sections": []
+    }
+    res = client.post(f"/api/internal/v1/forms/{form_id}/commits", json={
+        "branch": "main",
+        "schema": long_secret_schema,
+        "message": "Long secret check"
+    })
+    assert res.status_code == 400
+    assert "secret cannot exceed 128 characters" in res.get_json()["message"]
+
+    # 8. Invalid Internal Recipients: Bad ObjectID
+    bad_uid_schema = {
+        "settings": {
+            "notifications": {
+                "internal_recipients": {
+                    "enabled": True,
+                    "user_ids": ["not-an-object-id"],
+                    "team_ids": []
+                }
+            }
+        },
+        "sections": []
+    }
+    res = client.post(f"/api/internal/v1/forms/{form_id}/commits", json={
+        "branch": "main",
+        "schema": bad_uid_schema,
+        "message": "Bad UID check"
+    })
+    assert res.status_code == 400
+    assert "Invalid user_id format" in res.get_json()["message"]
+
+    # 9. Invalid Failure Handling: Too many retries
+    bad_retries_schema = {
+        "settings": {
+            "notifications": {
+                "failure_handling": {
+                    "retry_attempts": 6
+                }
+            }
+        },
+        "sections": []
+    }
+    res = client.post(f"/api/internal/v1/forms/{form_id}/commits", json={
+        "branch": "main",
+        "schema": bad_retries_schema,
+        "message": "Bad retries check"
+    })
+    assert res.status_code == 400
+    assert "retry_attempts must be an integer between 0 and 5" in res.get_json()["message"]
+
+
+def test_analytics_settings_validation(client):
+    # Create Form
+    res = client.post("/api/internal/v1/forms", json={
+        "name": "Analytics Validation Form",
+        "project_id": str(ObjectId()),
+        "org_id": str(ObjectId())
+    })
+    form_id = res.get_json()["data"]["form_id"]
+
+    # 1. Valid analytics configuration
+    valid_schema = {
+        "settings": {
+            "analytics": {
+                "enabled": True,
+                "start_event_type": "first_interaction",
+                "end_event_type": "submit_success",
+                "drop_off_enabled": True,
+                "timing_enabled": True,
+                "utm_capture_enabled": True
+            }
+        },
+        "sections": []
+    }
+    res = client.post(f"/api/internal/v1/forms/{form_id}/commits", json={
+        "branch": "main",
+        "schema": valid_schema,
+        "message": "Valid analytics schema"
+    })
+    assert res.status_code == 200
+
+    # 2. Invalid start_event_type
+    bad_start_schema = {
+        "settings": {
+            "analytics": {
+                "start_event_type": "invalid_event"
+            }
+        },
+        "sections": []
+    }
+    res = client.post(f"/api/internal/v1/forms/{form_id}/commits", json={
+        "branch": "main",
+        "schema": bad_start_schema,
+        "message": "Bad start event"
+    })
+    assert res.status_code == 400
+    assert "analytics.start_event_type must be" in res.get_json()["message"]
+
+    # 3. Invalid end_event_type
+    bad_end_schema = {
+        "settings": {
+            "analytics": {
+                "end_event_type": "invalid_end_event"
+            }
+        },
+        "sections": []
+    }
+    res = client.post(f"/api/internal/v1/forms/{form_id}/commits", json={
+        "branch": "main",
+        "schema": bad_end_schema,
+        "message": "Bad end event"
+    })
+    assert res.status_code == 400
+    assert "analytics.end_event_type must be" in res.get_json()["message"]
+
+
+

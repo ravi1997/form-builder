@@ -87,22 +87,23 @@ def test_evaluate_formula():
 # --- 2. Test Celery Tasks Execution ---
 
 def test_run_analysis_graph_task_success(db):
+    org_id = ObjectId()
     form_id = ObjectId()
     # Create Form
-    db.forms.insert_one({"_id": form_id, "name": "Income Form", "is_deleted": False})
+    db.forms.insert_one({"_id": form_id, "org_id": org_id, "name": "Income Form", "is_deleted": False})
     
     # Seed response data
     db.form_responses.insert_many([
-        {"form_id": form_id, "values": {"age": 25, "gender": "F", "income": 50000}},
-        {"form_id": form_id, "values": {"age": 35, "gender": "M", "income": 80000}},
-        {"form_id": form_id, "values": {"age": 45, "gender": "F", "income": 90000}}
+        {"form_id": form_id, "org_id": org_id, "values": {"age": 25, "gender": "F", "income": 50000}},
+        {"form_id": form_id, "org_id": org_id, "values": {"age": 35, "gender": "M", "income": 80000}},
+        {"form_id": form_id, "org_id": org_id, "values": {"age": 45, "gender": "F", "income": 90000}}
     ])
     
     # Create Analysis
     analysis_id = ObjectId()
     analysis_doc = {
         "_id": analysis_id,
-        "org_id": ObjectId(),
+        "org_id": org_id,
         "project_id": ObjectId(),
         "name": "Income Analysis for Females",
         "graph": {

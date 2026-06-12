@@ -1,0 +1,14 @@
+{
+  "id": "27a08c24-b462-4a33-abd5-60c2ac297183",
+  "type": "MessageType.REQUEST",
+  "from_agent": "agent-1",
+  "to_agent": "agent-2",
+  "subject": "Code Review Request",
+  "content": "Please review the backend API implementation",
+  "priority": "Priority.HIGH",
+  "timestamp": "2026-06-12T12:23:06.340527",
+  "context": {},
+  "requires_response": false,
+  "response_to": null,
+  "ttl": 3600
+}

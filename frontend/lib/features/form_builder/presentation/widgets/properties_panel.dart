@@ -6,9 +6,12 @@ import '../../../../core/theme/design_system.dart';
 import '../../../../core/theme/tokens.dart';
 import '../../providers/form_builder_provider.dart';
 import '../../../../core/theme/css_injector.dart';
+import 'logic_graph_editor.dart';
 
 class PropertiesPanel extends ConsumerStatefulWidget {
-  const PropertiesPanel({super.key});
+  final VoidCallback? onClosePanel;
+
+  const PropertiesPanel({super.key, this.onClosePanel});
 
   @override
   ConsumerState<PropertiesPanel> createState() => _PropertiesPanelState();
@@ -47,6 +50,8 @@ class _PropertiesPanelState extends ConsumerState<PropertiesPanel> {
   final _fieldDescription = TextEditingController();
   final _fieldPlaceholder = TextEditingController();
   final _fieldOptions = TextEditingController();
+  final _fieldSlug = TextEditingController();
+  final _fieldElevation = TextEditingController();
 
   @override
   void dispose() {
@@ -77,6 +82,8 @@ class _PropertiesPanelState extends ConsumerState<PropertiesPanel> {
     _fieldDescription.dispose();
     _fieldPlaceholder.dispose();
     _fieldOptions.dispose();
+    _fieldSlug.dispose();
+    _fieldElevation.dispose();
     super.dispose();
   }
 
@@ -130,6 +137,15 @@ class _PropertiesPanelState extends ConsumerState<PropertiesPanel> {
                         .deleteElement(selectedId);
                   },
                 ),
+                const SizedBox(width: AppSpacing.xs),
+                IconButton.filledTonal(
+                  icon: const Icon(Icons.close),
+                  tooltip: 'Close properties panel',
+                  onPressed: () {
+                    ref.read(formBuilderProvider.notifier).selectElement(null);
+                    widget.onClosePanel?.call();
+                  },
+                ),
               ],
             ),
             const SizedBox(height: AppSpacing.md),
@@ -143,6 +159,7 @@ class _PropertiesPanelState extends ConsumerState<PropertiesPanel> {
                       if (_selectedSection != null) {
                         return _SectionEditor(
                           section: _selectedSection!,
+                          onClosePanel: widget.onClosePanel,
                           titleController: _sectionTitle,
                           subtitleController: _sectionSubtitle,
                           descriptionController: _sectionDescription,
@@ -171,16 +188,20 @@ class _PropertiesPanelState extends ConsumerState<PropertiesPanel> {
                       if (_selectedSubSection != null) {
                         return _SubSectionEditor(
                           subSection: _selectedSubSection!,
+                          onClosePanel: widget.onClosePanel,
                           titleController: _subSectionTitle,
                         );
                       }
                       if (_selectedQuestion != null) {
                         return _QuestionEditor(
                           question: _selectedQuestion!,
+                          onClosePanel: widget.onClosePanel,
                           labelController: _fieldLabel,
                           descriptionController: _fieldDescription,
                           placeholderController: _fieldPlaceholder,
                           optionsController: _fieldOptions,
+                          slugController: _fieldSlug,
+                          elevationController: _fieldElevation,
                         );
                       }
                       return const Text(
@@ -258,6 +279,8 @@ class _PropertiesPanelState extends ConsumerState<PropertiesPanel> {
     _fieldLabel.text = q.label;
     _fieldDescription.text = q.description;
     _fieldPlaceholder.text = q.properties['placeholder']?.toString() ?? '';
+    _fieldSlug.text = q.properties['slug']?.toString() ?? q.id;
+    _fieldElevation.text = (q.properties['elevation'] ?? 0.0).toString();
     final rawOpts = q.properties['options'];
     if (rawOpts is List) {
       _fieldOptions.text = rawOpts
@@ -273,6 +296,7 @@ class _PropertiesPanelState extends ConsumerState<PropertiesPanel> {
 
 class _SectionEditor extends StatelessWidget {
   final FormSection section;
+  final VoidCallback? onClosePanel;
   final TextEditingController titleController;
   final TextEditingController subtitleController;
   final TextEditingController descriptionController;
@@ -298,6 +322,7 @@ class _SectionEditor extends StatelessWidget {
 
   const _SectionEditor({
     required this.section,
+    this.onClosePanel,
     required this.titleController,
     required this.subtitleController,
     required this.descriptionController,
@@ -338,7 +363,14 @@ class _SectionEditor extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _sectionHeader(context, 'Section properties'),
+          _headerWithClose(
+            context,
+            'Section properties',
+            onClose: () {
+            notifier.ref.read(formBuilderProvider.notifier).selectElement(null);
+            onClosePanel?.call();
+          },
+          ),
           const SizedBox(height: AppSpacing.sm),
           Text(
             'Summary: ${section.repeatable ? 'repeatable' : 'single'} · ${section.collapsible ? 'collapsible' : 'fixed'} · ${section.columns} column${section.columns == 1 ? '' : 's'}',
@@ -1052,54 +1084,7 @@ class _SectionEditor extends StatelessWidget {
                 ),
                 ListView(
                   children: [
-                    _groupCard(
-                      context,
-                      title: 'Logic',
-                      children: [
-                        const Text(
-                          'Use visibility rules and skip targets to shape flow.',
-                        ),
-                        const SizedBox(height: AppSpacing.md),
-                        TextField(
-                          controller: visibilityRuleController,
-                          decoration: const InputDecoration(
-                            labelText: 'Rule summary',
-                            hintText: 'Show when ...',
-                          ),
-                          minLines: 2,
-                          maxLines: 4,
-                          onChanged: (val) => controller.updateSection(
-                            section.id,
-                            visibilityRule: val.isEmpty ? null : val,
-                          ),
-                        ),
-                        const SizedBox(height: AppSpacing.md),
-                        TextField(
-                          controller: skipToController,
-                          decoration: const InputDecoration(
-                            labelText: 'Skip target section',
-                          ),
-                          onChanged: (val) => controller.updateSection(
-                            section.id,
-                            skipToSectionId: val.isEmpty ? null : val,
-                          ),
-                        ),
-                        const SizedBox(height: AppSpacing.md),
-                        TextField(
-                          controller: visibilityRuleController,
-                          decoration: const InputDecoration(
-                            labelText: 'Rule summary',
-                            hintText: 'Show when ...',
-                          ),
-                          minLines: 2,
-                          maxLines: 4,
-                          onChanged: (val) => controller.updateSection(
-                            section.id,
-                            visibilityRule: val.isEmpty ? null : val,
-                          ),
-                        ),
-                      ],
-                    ),
+                    SectionLogicEditor(section: section),
                   ],
                 ),
               ],
@@ -1113,10 +1098,12 @@ class _SectionEditor extends StatelessWidget {
 
 class _SubSectionEditor extends StatelessWidget {
   final FormSubSection subSection;
+  final VoidCallback? onClosePanel;
   final TextEditingController titleController;
 
   const _SubSectionEditor({
     required this.subSection,
+    this.onClosePanel,
     required this.titleController,
   });
 
@@ -1127,7 +1114,14 @@ class _SubSectionEditor extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _sectionHeader(context, 'Sub-section properties'),
+        _headerWithClose(
+          context,
+          'Sub-section properties',
+          onClose: () {
+            controller.ref.read(formBuilderProvider.notifier).selectElement(null);
+            onClosePanel?.call();
+          },
+        ),
         const SizedBox(height: AppSpacing.md),
         TextField(
           controller: titleController,
@@ -1152,29 +1146,43 @@ class _SubSectionEditor extends StatelessWidget {
 
 class _QuestionEditor extends StatelessWidget {
   final FormQuestion question;
+  final VoidCallback? onClosePanel;
   final TextEditingController labelController;
   final TextEditingController descriptionController;
   final TextEditingController placeholderController;
   final TextEditingController optionsController;
+  final TextEditingController slugController;
+  final TextEditingController elevationController;
 
   const _QuestionEditor({
     required this.question,
+    this.onClosePanel,
     required this.labelController,
     required this.descriptionController,
     required this.placeholderController,
     required this.optionsController,
+    required this.slugController,
+    required this.elevationController,
   });
 
   @override
   Widget build(BuildContext context) {
     final controller = context.findAncestorStateOfType<_PropertiesPanelState>();
     if (controller == null) return const SizedBox.shrink();
+    final theme = Theme.of(context);
     final showOptions =
         question.type == 'dropdown' || question.type == 'multi_select';
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _sectionHeader(context, 'Field properties'),
+        _headerWithClose(
+          context,
+          'Field properties',
+          onClose: () {
+            controller.ref.read(formBuilderProvider.notifier).selectElement(null);
+            onClosePanel?.call();
+          },
+        ),
         const SizedBox(height: AppSpacing.md),
         TextField(
           controller: labelController,
@@ -1192,13 +1200,16 @@ class _QuestionEditor extends StatelessWidget {
               .updateQuestion(question.id, description: val),
         ),
         const SizedBox(height: AppSpacing.md),
-        SwitchListTile(
-          contentPadding: EdgeInsets.zero,
-          title: const Text('Required field'),
-          value: question.required,
-          onChanged: (val) => controller.ref
-              .read(formBuilderProvider.notifier)
-              .updateQuestion(question.id, required: val),
+        Material(
+          color: Colors.transparent,
+          child: SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Required field'),
+            value: question.required,
+            onChanged: (val) => controller.ref
+                .read(formBuilderProvider.notifier)
+                .updateQuestion(question.id, required: val),
+          ),
         ),
         const SizedBox(height: AppSpacing.md),
         TextField(
@@ -1211,6 +1222,79 @@ class _QuestionEditor extends StatelessWidget {
                 .read(formBuilderProvider.notifier)
                 .updateQuestion(question.id, properties: props);
           },
+        ),
+        const SizedBox(height: AppSpacing.md),
+        Row(
+          children: [
+            const Expanded(child: Text('Slug Key')),
+            const SizedBox(width: 4),
+            Tooltip(
+              key: const ValueKey('tooltip-slug'),
+              message: 'Technical identifier for API and formulas',
+              child: Icon(Icons.info_outline, size: 16, color: theme.colorScheme.onSurfaceVariant),
+            ),
+          ],
+        ),
+        const SizedBox(height: AppSpacing.xs),
+        TextField(
+          key: const ValueKey('sidebar-slug-input'),
+          controller: slugController,
+          decoration: const InputDecoration(labelText: 'Slug'),
+          onChanged: (val) {
+            final props = Map<String, dynamic>.from(question.properties);
+            props['slug'] = val;
+            controller.ref.read(formBuilderProvider.notifier).updateQuestion(question.id, properties: props);
+          },
+        ),
+        const SizedBox(height: AppSpacing.md),
+        Row(
+          children: [
+            const Expanded(child: Text('Card Elevation')),
+            const SizedBox(width: 4),
+            Tooltip(
+              key: const ValueKey('tooltip-elevation'),
+              message: 'Shadow depth for visual card layout rendering',
+              child: Icon(Icons.info_outline, size: 16, color: theme.colorScheme.onSurfaceVariant),
+            ),
+          ],
+        ),
+        const SizedBox(height: AppSpacing.xs),
+        TextField(
+          key: const ValueKey('sidebar-elevation-input'),
+          controller: elevationController,
+          decoration: const InputDecoration(labelText: 'Elevation'),
+          onChanged: (val) {
+            final props = Map<String, dynamic>.from(question.properties);
+            props['elevation'] = double.tryParse(val) ?? 0.0;
+            controller.ref.read(formBuilderProvider.notifier).updateQuestion(question.id, properties: props);
+          },
+        ),
+        const SizedBox(height: AppSpacing.md),
+        Row(
+          children: [
+            const Expanded(child: Text('FLE / PII Encryption')),
+            const SizedBox(width: 4),
+            Tooltip(
+              key: const ValueKey('tooltip-fle-pii'),
+              message: 'Encrypt field content at rest to protect sensitive inputs',
+              child: Icon(Icons.info_outline, size: 16, color: theme.colorScheme.onSurfaceVariant),
+            ),
+          ],
+        ),
+        const SizedBox(height: AppSpacing.xs),
+        Material(
+          color: Colors.transparent,
+          child: SwitchListTile(
+            key: const ValueKey('sidebar-fle-pii-switch'),
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Field Level Encryption / PII'),
+            value: question.properties['fle_pii'] == true,
+            onChanged: (val) {
+              final props = Map<String, dynamic>.from(question.properties);
+              props['fle_pii'] = val;
+              controller.ref.read(formBuilderProvider.notifier).updateQuestion(question.id, properties: props);
+            },
+          ),
         ),
         if (showOptions) ...[
           const SizedBox(height: AppSpacing.md),
@@ -1364,18 +1448,47 @@ Widget _sectionHeader(BuildContext context, String title) {
   );
 }
 
+Widget _headerWithClose(
+  BuildContext context,
+  String title, {
+  required VoidCallback onClose,
+}) {
+  return Row(
+    children: [
+      Expanded(
+        child: Text(
+          title,
+          style: Theme.of(
+            context,
+          ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800),
+        ),
+      ),
+      IconButton(
+        tooltip: 'Close $title',
+        icon: const Icon(Icons.close),
+        onPressed: onClose,
+      ),
+    ],
+  );
+}
+
 Widget _toggleTile({
+  Key? key,
   required String title,
   required String subtitle,
   required bool value,
   required ValueChanged<bool> onChanged,
 }) {
-  return SwitchListTile(
-    contentPadding: EdgeInsets.zero,
-    title: Text(title),
-    subtitle: Text(subtitle),
-    value: value,
-    onChanged: onChanged,
+  return Material(
+    color: Colors.transparent,
+    child: SwitchListTile(
+      key: key,
+      contentPadding: EdgeInsets.zero,
+      title: Text(title),
+      subtitle: Text(subtitle),
+      value: value,
+      onChanged: onChanged,
+    ),
   );
 }
 
@@ -1395,6 +1508,12 @@ class _FormPropertiesEditorState extends ConsumerState<_FormPropertiesEditor> {
   late TextEditingController _borderRadiusController;
   late TextEditingController _cssController;
 
+  late TextEditingController _emailRecipientsController;
+  late TextEditingController _webhookUrlController;
+  late TextEditingController _webhookSecretController;
+  late TextEditingController _internalUsersController;
+  late TextEditingController _internalTeamsController;
+
   bool _isAdvancedMode = false;
 
   @override
@@ -1408,6 +1527,12 @@ class _FormPropertiesEditorState extends ConsumerState<_FormPropertiesEditor> {
     _fontFamilyController = TextEditingController(text: state.style.fontFamily);
     _borderRadiusController = TextEditingController(text: state.style.borderRadius.toString());
     _cssController = TextEditingController(text: state.style.customCss);
+
+    _emailRecipientsController = TextEditingController(text: state.notifications.emailRecipients.join(', '));
+    _webhookUrlController = TextEditingController(text: state.notifications.webhookUrl);
+    _webhookSecretController = TextEditingController(text: state.notifications.webhookSecret);
+    _internalUsersController = TextEditingController(text: state.notifications.internalUserIds.join(', '));
+    _internalTeamsController = TextEditingController(text: state.notifications.internalTeamIds.join(', '));
     
     // Inject initial custom CSS
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -1424,6 +1549,12 @@ class _FormPropertiesEditorState extends ConsumerState<_FormPropertiesEditor> {
     _fontFamilyController.dispose();
     _borderRadiusController.dispose();
     _cssController.dispose();
+
+    _emailRecipientsController.dispose();
+    _webhookUrlController.dispose();
+    _webhookSecretController.dispose();
+    _internalUsersController.dispose();
+    _internalTeamsController.dispose();
     super.dispose();
   }
 
@@ -1471,8 +1602,59 @@ class _FormPropertiesEditorState extends ConsumerState<_FormPropertiesEditor> {
     final builderState = ref.watch(formBuilderProvider);
     final theme = Theme.of(context);
 
+    bool isValidHexColor(String hex) {
+      final regExp = RegExp(r'^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$');
+      return regExp.hasMatch(hex);
+    }
+
+    ref.listen<FormBuilderState>(formBuilderProvider, (previous, next) {
+      if (next.name != _nameController.text) {
+        _nameController.text = next.name;
+      }
+      if (next.description != _descController.text) {
+        _descController.text = next.description;
+      }
+      if (next.style.primaryColor != _primaryColorController.text) {
+        _primaryColorController.text = next.style.primaryColor;
+      }
+      if (next.style.backgroundColor != _bgColorController.text) {
+        _bgColorController.text = next.style.backgroundColor;
+      }
+      if (next.style.fontFamily != _fontFamilyController.text) {
+        _fontFamilyController.text = next.style.fontFamily;
+      }
+      if (next.style.borderRadius.toString() != _borderRadiusController.text) {
+        _borderRadiusController.text = next.style.borderRadius.toString();
+      }
+      if (next.style.customCss != _cssController.text) {
+        _cssController.text = next.style.customCss;
+      }
+
+      final prevRecipients = previous?.notifications.emailRecipients.join(', ') ?? '';
+      final nextRecipients = next.notifications.emailRecipients.join(', ');
+      if (nextRecipients != _emailRecipientsController.text && nextRecipients != prevRecipients) {
+        _emailRecipientsController.text = nextRecipients;
+      }
+      if (next.notifications.webhookUrl != _webhookUrlController.text && next.notifications.webhookUrl != (previous?.notifications.webhookUrl ?? '')) {
+        _webhookUrlController.text = next.notifications.webhookUrl;
+      }
+      if (next.notifications.webhookSecret != _webhookSecretController.text && next.notifications.webhookSecret != (previous?.notifications.webhookSecret ?? '')) {
+        _webhookSecretController.text = next.notifications.webhookSecret;
+      }
+      final prevUsers = previous?.notifications.internalUserIds.join(', ') ?? '';
+      final nextUsers = next.notifications.internalUserIds.join(', ');
+      if (nextUsers != _internalUsersController.text && nextUsers != prevUsers) {
+        _internalUsersController.text = nextUsers;
+      }
+      final prevTeams = previous?.notifications.internalTeamIds.join(', ') ?? '';
+      final nextTeams = next.notifications.internalTeamIds.join(', ');
+      if (nextTeams != _internalTeamsController.text && nextTeams != prevTeams) {
+        _internalTeamsController.text = nextTeams;
+      }
+    });
+
     return DefaultTabController(
-      length: 2,
+      length: 4,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1487,6 +1669,8 @@ class _FormPropertiesEditorState extends ConsumerState<_FormPropertiesEditor> {
             tabs: [
               Tab(text: 'General'),
               Tab(text: 'Style'),
+              Tab(text: 'Notifications'),
+              Tab(text: 'Analytics'),
             ],
           ),
           const SizedBox(height: AppSpacing.md),
@@ -1601,18 +1785,32 @@ class _FormPropertiesEditorState extends ConsumerState<_FormPropertiesEditor> {
                         title: 'Theme Tokens',
                         children: [
                           TextField(
+                            key: const ValueKey('sidebar-primary-color-input'),
                             controller: _primaryColorController,
-                            decoration: const InputDecoration(labelText: 'Primary Color (Hex)'),
+                            decoration: InputDecoration(
+                              labelText: 'Primary Color (Hex)',
+                              errorText: isValidHexColor(_primaryColorController.text) ? null : 'Invalid hex color (e.g. #3949AB)',
+                            ),
                             onChanged: (val) {
-                              ref.read(formBuilderProvider.notifier).updateStyle(primaryColor: val, clearThemeId: true);
+                              setState(() {});
+                              if (isValidHexColor(val)) {
+                                ref.read(formBuilderProvider.notifier).updateStyle(primaryColor: val, clearThemeId: true);
+                              }
                             },
                           ),
                           const SizedBox(height: AppSpacing.md),
                           TextField(
+                            key: const ValueKey('sidebar-bg-color-input'),
                             controller: _bgColorController,
-                            decoration: const InputDecoration(labelText: 'Background Color (Hex)'),
+                            decoration: InputDecoration(
+                              labelText: 'Background Color (Hex)',
+                              errorText: isValidHexColor(_bgColorController.text) ? null : 'Invalid hex color (e.g. #FFFDF9)',
+                            ),
                             onChanged: (val) {
-                              ref.read(formBuilderProvider.notifier).updateStyle(backgroundColor: val, clearThemeId: true);
+                              setState(() {});
+                              if (isValidHexColor(val)) {
+                                ref.read(formBuilderProvider.notifier).updateStyle(backgroundColor: val, clearThemeId: true);
+                              }
                             },
                           ),
                           const SizedBox(height: AppSpacing.md),
@@ -1690,12 +1888,320 @@ class _FormPropertiesEditorState extends ConsumerState<_FormPropertiesEditor> {
                       ],
                     ],
                   ),
-                ],
-              ),
+                ListView(
+                  children: [
+                    _groupCard(
+                      context,
+                      title: 'Email Submission Alerts',
+                      children: [
+                        _toggleTile(
+                          key: const ValueKey('notifications-email-switch'),
+                          title: 'Enable Email Alerts',
+                          subtitle: 'Send email notifications on submission.',
+                          value: builderState.notifications.emailEnabled,
+                          onChanged: (val) {
+                            ref.read(formBuilderProvider.notifier).updateNotifications(emailEnabled: val);
+                          },
+                        ),
+                        if (builderState.notifications.emailEnabled) ...[
+                          const SizedBox(height: AppSpacing.md),
+                          DropdownButtonFormField<String>(
+                            key: const ValueKey('notifications-email-trigger-dropdown'),
+                            isExpanded: true,
+                            value: builderState.notifications.emailTriggerEvent,
+                            decoration: const InputDecoration(labelText: 'Trigger Event'),
+                            items: const [
+                              DropdownMenuItem(value: 'on_submission', child: Text('On Submission')),
+                              DropdownMenuItem(value: 'on_first_save', child: Text('On First Save')),
+                            ],
+                            onChanged: (val) {
+                              if (val != null) {
+                                ref.read(formBuilderProvider.notifier).updateNotifications(emailTriggerEvent: val);
+                              }
+                            },
+                          ),
+                          const SizedBox(height: AppSpacing.md),
+                          TextField(
+                            key: const ValueKey('notifications-email-recipients-input'),
+                            controller: _emailRecipientsController,
+                            decoration: const InputDecoration(
+                              labelText: 'Recipients Emails',
+                              hintText: 'user@example.com, admin@company.org',
+                            ),
+                            onChanged: (val) {
+                              final list = val.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
+                              ref.read(formBuilderProvider.notifier).updateNotifications(emailRecipients: list);
+                            },
+                          ),
+                          const SizedBox(height: AppSpacing.md),
+                          _toggleTile(
+                            key: const ValueKey('notifications-email-payload-switch'),
+                            title: 'Include Full Payload',
+                            subtitle: 'Send all responses inside the email.',
+                            value: builderState.notifications.emailIncludePayload,
+                            onChanged: (val) {
+                              ref.read(formBuilderProvider.notifier).updateNotifications(emailIncludePayload: val);
+                            },
+                          ),
+                          const SizedBox(height: AppSpacing.sm),
+                          _toggleTile(
+                            key: const ValueKey('notifications-email-attachments-switch'),
+                            title: 'Include File Attachments',
+                            subtitle: 'Attach uploaded documents to emails.',
+                            value: builderState.notifications.emailIncludeAttachments,
+                            onChanged: (val) {
+                              ref.read(formBuilderProvider.notifier).updateNotifications(emailIncludeAttachments: val);
+                            },
+                          ),
+                          const SizedBox(height: AppSpacing.sm),
+                          const Padding(
+                            padding: EdgeInsets.symmetric(horizontal: AppSpacing.sm),
+                            child: Text(
+                              'Warning: Payload content contains unencrypted fields. Enable PII redaction to protect sensitive answers.',
+                              style: TextStyle(color: Colors.amber, fontSize: 11, fontWeight: FontWeight.w500),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                    const SizedBox(height: AppSpacing.md),
+                    _groupCard(
+                      context,
+                      title: 'Simple Webhook Delivery',
+                      children: [
+                        _toggleTile(
+                          key: const ValueKey('notifications-webhook-switch'),
+                          title: 'Enable Webhook Delivery',
+                          subtitle: 'POST submission data to a target URL.',
+                          value: builderState.notifications.webhookEnabled,
+                          onChanged: (val) {
+                            ref.read(formBuilderProvider.notifier).updateNotifications(webhookEnabled: val);
+                          },
+                        ),
+                        if (builderState.notifications.webhookEnabled) ...[
+                          const SizedBox(height: AppSpacing.md),
+                          TextField(
+                            key: const ValueKey('notifications-webhook-url-input'),
+                            controller: _webhookUrlController,
+                            decoration: const InputDecoration(
+                              labelText: 'Target URL',
+                              hintText: 'https://api.receiver.com/v1/intake',
+                            ),
+                            onChanged: (val) {
+                              ref.read(formBuilderProvider.notifier).updateNotifications(webhookUrl: val);
+                            },
+                          ),
+                          const SizedBox(height: AppSpacing.md),
+                          TextField(
+                            key: const ValueKey('notifications-webhook-secret-input'),
+                            controller: _webhookSecretController,
+                            obscureText: true,
+                            decoration: const InputDecoration(
+                              labelText: 'Webhook Secret',
+                              hintText: 'HMAC SHA256 Signing Key',
+                            ),
+                            onChanged: (val) {
+                              ref.read(formBuilderProvider.notifier).updateNotifications(webhookSecret: val);
+                            },
+                          ),
+                          const SizedBox(height: AppSpacing.md),
+                          DropdownButtonFormField<String>(
+                            key: const ValueKey('notifications-webhook-contenttype-dropdown'),
+                            isExpanded: true,
+                            value: builderState.notifications.webhookContentType,
+                            decoration: const InputDecoration(labelText: 'Content Type'),
+                            items: const [
+                              DropdownMenuItem(value: 'application/json', child: Text('application/json')),
+                              DropdownMenuItem(value: 'application/x-www-form-urlencoded', child: Text('application/x-www-form-urlencoded')),
+                            ],
+                            onChanged: (val) {
+                              if (val != null) {
+                                ref.read(formBuilderProvider.notifier).updateNotifications(webhookContentType: val);
+                              }
+                            },
+                          ),
+                        ],
+                      ],
+                    ),
+                    const SizedBox(height: AppSpacing.md),
+                    _groupCard(
+                      context,
+                      title: 'Internal Recipients List',
+                      children: [
+                        _toggleTile(
+                          key: const ValueKey('notifications-internal-switch'),
+                          title: 'Enable Platform Alerts',
+                          subtitle: 'Alert workspace members in-app.',
+                          value: builderState.notifications.internalEnabled,
+                          onChanged: (val) {
+                            ref.read(formBuilderProvider.notifier).updateNotifications(internalEnabled: val);
+                          },
+                        ),
+                        if (builderState.notifications.internalEnabled) ...[
+                          const SizedBox(height: AppSpacing.md),
+                          TextField(
+                            key: const ValueKey('notifications-internal-users-input'),
+                            controller: _internalUsersController,
+                            decoration: const InputDecoration(
+                              labelText: 'Recipient User IDs',
+                              hintText: 'Comma separated 24-character ObjectIDs',
+                            ),
+                            onChanged: (val) {
+                              final list = val.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
+                              ref.read(formBuilderProvider.notifier).updateNotifications(internalUserIds: list);
+                            },
+                          ),
+                          const SizedBox(height: AppSpacing.md),
+                          TextField(
+                            key: const ValueKey('notifications-internal-teams-input'),
+                            controller: _internalTeamsController,
+                            decoration: const InputDecoration(
+                              labelText: 'Recipient Team IDs',
+                              hintText: 'team_sales, team_support',
+                            ),
+                            onChanged: (val) {
+                              final list = val.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
+                              ref.read(formBuilderProvider.notifier).updateNotifications(internalTeamIds: list);
+                            },
+                          ),
+                        ],
+                      ],
+                    ),
+                    const SizedBox(height: AppSpacing.md),
+                    _groupCard(
+                      context,
+                      title: 'Failure Handling & Resiliency',
+                      children: [
+                        Row(
+                          children: [
+                            const Text('Retry Attempts'),
+                            Expanded(
+                              child: Slider(
+                                key: const ValueKey('notifications-failure-retry-slider'),
+                                value: builderState.notifications.retryAttempts.toDouble(),
+                                min: 0,
+                                max: 5,
+                                divisions: 5,
+                                label: builderState.notifications.retryAttempts.toString(),
+                                onChanged: (val) {
+                                  ref.read(formBuilderProvider.notifier).updateNotifications(retryAttempts: val.toInt());
+                                },
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: AppSpacing.sm),
+                        _toggleTile(
+                          key: const ValueKey('notifications-failure-alert-switch'),
+                          title: 'Alert Owner on Failure',
+                          subtitle: 'Send system notification if delivery fails.',
+                          value: builderState.notifications.alertOwnerOnFailure,
+                          onChanged: (val) {
+                            ref.read(formBuilderProvider.notifier).updateNotifications(alertOwnerOnFailure: val);
+                          },
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: AppSpacing.xl),
+                  ],
+                ),
+                ListView(
+                  children: [
+                    _groupCard(
+                      context,
+                      title: 'Event Tracking',
+                      children: [
+                        _toggleTile(
+                          key: const ValueKey('analytics-enabled-switch'),
+                          title: 'Enable Analytics Collection',
+                          subtitle: 'Measure form interaction and metrics.',
+                          value: builderState.analytics.enabled,
+                          onChanged: (val) {
+                            ref.read(formBuilderProvider.notifier).updateAnalytics(enabled: val);
+                          },
+                        ),
+                        if (builderState.analytics.enabled) ...[
+                          const SizedBox(height: AppSpacing.md),
+                          DropdownButtonFormField<String>(
+                            key: const ValueKey('analytics-start-event-dropdown'),
+                            isExpanded: true,
+                            value: builderState.analytics.startEventType,
+                            decoration: const InputDecoration(labelText: 'Start Event Condition'),
+                            items: const [
+                              DropdownMenuItem(value: 'form_load', child: Text('Form Loaded (Initial Page Open)')),
+                              DropdownMenuItem(value: 'first_interaction', child: Text('First Interaction (Click or Keypress)')),
+                              DropdownMenuItem(value: 'first_input', child: Text('First Input (Data Entry Begun)')),
+                            ],
+                            onChanged: (val) {
+                              if (val != null) {
+                                ref.read(formBuilderProvider.notifier).updateAnalytics(startEventType: val);
+                              }
+                            },
+                          ),
+                          const SizedBox(height: AppSpacing.md),
+                          DropdownButtonFormField<String>(
+                            key: const ValueKey('analytics-end-event-dropdown'),
+                            isExpanded: true,
+                            value: builderState.analytics.endEventType,
+                            decoration: const InputDecoration(labelText: 'End Event Condition'),
+                            items: const [
+                              DropdownMenuItem(value: 'submit_success', child: Text('Successful Submission')),
+                              DropdownMenuItem(value: 'submit_attempt', child: Text('Submission Attempt (Click Submit)')),
+                            ],
+                            onChanged: (val) {
+                              if (val != null) {
+                                ref.read(formBuilderProvider.notifier).updateAnalytics(endEventType: val);
+                              }
+                            },
+                          ),
+                        ],
+                      ],
+                    ),
+                    const SizedBox(height: AppSpacing.md),
+                    _groupCard(
+                      context,
+                      title: 'Measurement & Attribution',
+                      children: [
+                        _toggleTile(
+                          key: const ValueKey('analytics-drop-off-switch'),
+                          title: 'Drop-off Tracking',
+                          subtitle: 'Log section exits and abandonment points.',
+                          value: builderState.analytics.dropOffEnabled,
+                          onChanged: (val) {
+                            ref.read(formBuilderProvider.notifier).updateAnalytics(dropOffEnabled: val);
+                          },
+                        ),
+                        const SizedBox(height: AppSpacing.md),
+                        _toggleTile(
+                          key: const ValueKey('analytics-timing-switch'),
+                          title: 'Timing Metrics',
+                          subtitle: 'Measure average time-to-complete.',
+                          value: builderState.analytics.timingEnabled,
+                          onChanged: (val) {
+                            ref.read(formBuilderProvider.notifier).updateAnalytics(timingEnabled: val);
+                          },
+                        ),
+                        const SizedBox(height: AppSpacing.md),
+                        _toggleTile(
+                          key: const ValueKey('analytics-utm-capture-switch'),
+                          title: 'Attribution / UTM Source Capture',
+                          subtitle: 'Extract marketing attribution query parameters.',
+                          value: builderState.analytics.utmCaptureEnabled,
+                          onChanged: (val) {
+                            ref.read(formBuilderProvider.notifier).updateAnalytics(utmCaptureEnabled: val);
+                          },
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: AppSpacing.xl),
+                  ],
+                ),
+              ],
             ),
-          ],
-        ),
-      );
+          ),
+        ],
+      ),
+    );
   }
 }
 

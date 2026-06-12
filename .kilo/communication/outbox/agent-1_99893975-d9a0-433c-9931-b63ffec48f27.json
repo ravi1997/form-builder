@@ -1,0 +1,21 @@
+{
+  "id": "99893975-d9a0-433c-9931-b63ffec48f27",
+  "type": "MessageType.REQUEST",
+  "from_agent": "agent-1",
+  "to_agent": "agent-3",
+  "subject": "Consultation Request: What's the best approach for handling authenticati...",
+  "content": "Please provide consultation on: What's the best approach for handling authentication?",
+  "priority": "Priority.HIGH",
+  "timestamp": "2026-06-12T12:23:06.341104",
+  "context": {
+    "consultation_id": "b72c24b8-ff01-4c26-ae37-0ca40ac28916",
+    "deadline": 1781247786.340825,
+    "expertise_required": [
+      "security",
+      "backend"
+    ]
+  },
+  "requires_response": true,
+  "response_to": null,
+  "ttl": 3600
+}

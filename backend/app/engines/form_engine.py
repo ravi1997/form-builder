@@ -469,3 +469,434 @@ def three_way_merge(form_id, source_branch, target_branch, author_id):
     )
     
     return {"status": "merged", "commit_id": new_commit["commit_id"]}
+
+
+def delete_branch(form_id, branch_name):
+    """Delete a branch from a form."""
+    fid = ObjectId(form_id) if isinstance(form_id, str) and ObjectId.is_valid(form_id) else form_id
+    
+    form = mongo.db.forms.find_one({"_id": fid, "is_deleted": False})
+    if not form:
+        raise ValueError(f"Form {form_id} not found")
+        
+    branches = form.get("branches", {})
+    if branch_name not in branches:
+        raise ValueError(f"Branch {branch_name} not found for form {form_id}")
+        
+    if branch_name == "main":
+        raise ValueError("Cannot delete the main branch")
+        
+    if branch_name == form.get("production_branch"):
+        raise ValueError("Cannot delete the production branch")
+        
+    # Remove the branch
+    mongo.db.forms.update_one(
+        {"_id": fid, "is_deleted": False},
+        {
+            "$unset": {f"branches.{branch_name}": ""},
+            "$set": {"updated_at": datetime.datetime.utcnow().isoformat()}
+        }
+    )
+    
+    return {"status": "deleted", "branch": branch_name}
+
+
+def list_branches(form_id):
+    """List all branches for a form."""
+    fid = ObjectId(form_id) if isinstance(form_id, str) and ObjectId.is_valid(form_id) else form_id
+    
+    form = mongo.db.forms.find_one({"_id": fid, "is_deleted": False})
+    if not form:
+        raise ValueError(f"Form {form_id} not found")
+        
+    branches = form.get("branches", {})
+    production_branch = form.get("production_branch", "main")
+    
+    result = []
+    for branch_name, commit_id in branches.items():
+        commit = mongo.db.form_commits.find_one(
+            {"form_id": fid, "commit_id": commit_id}
+        )
+        result.append({
+            "name": branch_name,
+            "commit_id": commit_id,
+            "is_production": branch_name == production_branch,
+            "created_at": commit.get("timestamp") if commit else None,
+            "author_id": commit.get("author_id") if commit else None
+        })
+        
+    return result
+
+
+def create_tag(form_id, tag_name, commit_id, message=None):
+    """Create a tag for a specific commit."""
+    fid = ObjectId(form_id) if isinstance(form_id, str) and ObjectId.is_valid(form_id) else form_id
+    
+    # Verify form exists
+    form = mongo.db.forms.find_one({"_id": fid, "is_deleted": False})
+    if not form:
+        raise ValueError(f"Form {form_id} not found")
+        
+    # Verify commit exists
+    commit = mongo.db.form_commits.find_one({"form_id": fid, "commit_id": commit_id})
+    if not commit:
+        raise ValueError(f"Commit {commit_id} not found for form {form_id}")
+        
+    # Check if tag already exists
+    tags = form.get("tags", {})
+    if tag_name in tags:
+        raise ValueError(f"Tag {tag_name} already exists for form {form_id}")
+        
+    # Update the commit with tag information
+    mongo.db.form_commits.update_one(
+        {"form_id": fid, "commit_id": commit_id},
+        {
+            "$set": {
+                "tag": tag_name,
+                "updated_at": datetime.datetime.utcnow().isoformat()
+            }
+        }
+    )
+    
+    # Update form's tags
+    mongo.db.forms.update_one(
+        {"_id": fid, "is_deleted": False},
+        {
+            "$set": {
+                f"tags.{tag_name}": commit_id,
+                "updated_at": datetime.datetime.utcnow().isoformat()
+            }
+        }
+    )
+    
+    return {
+        "tag": tag_name,
+        "commit_id": commit_id,
+        "message": message or f"Tag {tag_name} created",
+        "created_at": datetime.datetime.utcnow().isoformat()
+    }
+
+
+def delete_tag(form_id, tag_name):
+    """Delete a tag from a form."""
+    fid = ObjectId(form_id) if isinstance(form_id, str) and ObjectId.is_valid(form_id) else form_id
+    
+    form = mongo.db.forms.find_one({"_id": fid, "is_deleted": False})
+    if not form:
+        raise ValueError(f"Form {form_id} not found")
+        
+    tags = form.get("tags", {})
+    if tag_name not in tags:
+        raise ValueError(f"Tag {tag_name} not found for form {form_id}")
+        
+    commit_id = tags[tag_name]
+    
+    # Remove tag from commit
+    mongo.db.form_commits.update_one(
+        {"form_id": fid, "commit_id": commit_id},
+        {
+            "$unset": {"tag": ""},
+            "$set": {"updated_at": datetime.datetime.utcnow().isoformat()}
+        }
+    )
+    
+    # Remove tag from form
+    mongo.db.forms.update_one(
+        {"_id": fid, "is_deleted": False},
+        {
+            "$unset": {f"tags.{tag_name}": ""},
+            "$set": {"updated_at": datetime.datetime.utcnow().isoformat()}
+        }
+    )
+    
+    return {"status": "deleted", "tag": tag_name}
+
+
+def list_tags(form_id):
+    """List all tags for a form."""
+    fid = ObjectId(form_id) if isinstance(form_id, str) and ObjectId.is_valid(form_id) else form_id
+    
+    form = mongo.db.forms.find_one({"_id": fid, "is_deleted": False})
+    if not form:
+        raise ValueError(f"Form {form_id} not found")
+        
+    tags = form.get("tags", {})
+    
+    result = []
+    for tag_name, commit_id in tags.items():
+        commit = mongo.db.form_commits.find_one(
+            {"form_id": fid, "commit_id": commit_id}
+        )
+        result.append({
+            "name": tag_name,
+            "commit_id": commit_id,
+            "created_at": commit.get("timestamp") if commit else None,
+            "author_id": commit.get("author_id") if commit else None,
+            "message": commit.get("message") if commit else None
+        })
+        
+    return result
+
+
+def publish_branch(form_id, branch_name, author_id, message=None):
+    """Publish a branch to production."""
+    fid = ObjectId(form_id) if isinstance(form_id, str) and ObjectId.is_valid(form_id) else form_id
+    uid = ObjectId(author_id) if isinstance(author_id, str) and ObjectId.is_valid(author_id) else author_id
+    
+    form = mongo.db.forms.find_one({"_id": fid, "is_deleted": False})
+    if not form:
+        raise ValueError(f"Form {form_id} not found")
+        
+    branches = form.get("branches", {})
+    if branch_name not in branches:
+        raise ValueError(f"Branch {branch_name} not found for form {form_id}")
+        
+    commit_id = branches[branch_name]
+    
+    # Create a new commit for the publication
+    publish_message = message or f"Publish branch {branch_name} to production"
+    new_commit = create_commit(
+        form_id=fid,
+        schema=mongo.db.form_commits.find_one({"form_id": fid, "commit_id": commit_id})["schema"],
+        author_id=uid,
+        message=publish_message,
+        branch=branch_name,
+        parent_ids=[commit_id]
+    )
+    
+    # Update production branch
+    mongo.db.forms.update_one(
+        {"_id": fid, "is_deleted": False},
+        {
+            "$set": {
+                "production_branch": branch_name,
+                f"branches.{branch_name}": new_commit["commit_id"],
+                "updated_at": datetime.datetime.utcnow().isoformat()
+            }
+        }
+    )
+    
+    return {
+        "status": "published",
+        "production_branch": branch_name,
+        "commit_id": new_commit["commit_id"],
+        "message": publish_message
+    }
+
+
+def get_commit_history(form_id, branch_name=None, limit=50, skip=0):
+    """Get commit history for a form or branch."""
+    fid = ObjectId(form_id) if isinstance(form_id, str) and ObjectId.is_valid(form_id) else form_id
+    
+    form = mongo.db.forms.find_one({"_id": fid, "is_deleted": False})
+    if not form:
+        raise ValueError(f"Form {form_id} not found")
+        
+    query = {"form_id": fid}
+    if branch_name:
+        query["branch"] = branch_name
+        
+    commits = list(mongo.db.form_commits.find(query)
+                  .sort("timestamp", -1)
+                  .skip(skip)
+                  .limit(limit))
+    
+    result = []
+    for commit in commits:
+        result.append({
+            "commit_id": commit["commit_id"],
+            "message": commit["message"],
+            "author_id": str(commit["author_id"]),
+            "branch": commit["branch"],
+            "tag": commit.get("tag"),
+            "timestamp": commit["timestamp"],
+            "parent_ids": commit["parent_ids"]
+        })
+        
+    return result
+
+
+def get_commit_diff(form_id, commit_a_id, commit_b_id):
+    """Get the differences between two commits."""
+    fid = ObjectId(form_id) if isinstance(form_id, str) and ObjectId.is_valid(form_id) else form_id
+    
+    commit_a = mongo.db.form_commits.find_one({"form_id": fid, "commit_id": commit_a_id})
+    commit_b = mongo.db.form_commits.find_one({"form_id": fid, "commit_id": commit_b_id})
+    
+    if not commit_a or not commit_b:
+        raise ValueError("One or both commits not found")
+        
+    schema_a = commit_a.get("schema", {})
+    schema_b = commit_b.get("schema", {})
+    
+    diff = {
+        "additions": {},
+        "deletions": {},
+        "modifications": {},
+        "conflicts": []
+    }
+    
+    # Compare form-level fields
+    for key in ["ui", "access", "settings"]:
+        if key in schema_b and key not in schema_a:
+            diff["additions"][key] = schema_b[key]
+        elif key in schema_a and key not in schema_b:
+            diff["deletions"][key] = schema_a[key]
+        elif key in schema_a and key in schema_b and schema_a[key] != schema_b[key]:
+            diff["modifications"][key] = {
+                "from": schema_a[key],
+                "to": schema_b[key]
+            }
+    
+    # Compare sections (simplified - could be enhanced for detailed section comparison)
+    sections_a = {s["id"]: s for s in schema_a.get("sections", [])}
+    sections_b = {s["id"]: s for s in schema_b.get("sections", [])}
+    
+    for sec_id, sec_b in sections_b.items():
+        if sec_id not in sections_a:
+            diff["additions"][f"sections.{sec_id}"] = sec_b
+        elif sections_a[sec_id] != sec_b:
+            diff["modifications"][f"sections.{sec_id}"] = {
+                "from": sections_a[sec_id],
+                "to": sec_b
+            }
+    
+    for sec_id, sec_a in sections_a.items():
+        if sec_id not in sections_b:
+            diff["deletions"][f"sections.{sec_id}"] = sec_a
+    
+    return diff
+
+
+def resolve_merge_conflict(form_id, pending_merge_id, resolved_fields, resolver_id):
+    """Resolve a merge conflict."""
+    fid = ObjectId(form_id) if isinstance(form_id, str) and ObjectId.is_valid(form_id) else form_id
+    pmid = ObjectId(pending_merge_id) if isinstance(pending_merge_id, str) and ObjectId.is_valid(pending_merge_id) else pending_merge_id
+    rid = ObjectId(resolver_id) if isinstance(resolver_id, str) and ObjectId.is_valid(resolver_id) else resolver_id
+    
+    # Get the pending merge record
+    pending_merge = mongo.db.pending_merges.find_one({"_id": pmid, "form_id": fid})
+    if not pending_merge:
+        raise ValueError(f"Pending merge {pending_merge_id} not found")
+        
+    if pending_merge.get("status") != "pending":
+        raise ValueError(f"Merge {pending_merge_id} is not in pending status")
+    
+    # Get the commits involved
+    base_commit_id = pending_merge["base_commit_id"]
+    their_commit_id = pending_merge["their_commit_id"]
+    
+    commit_base = mongo.db.form_commits.find_one({"form_id": fid, "commit_id": base_commit_id})
+    commit_their = mongo.db.form_commits.find_one({"form_id": fid, "commit_id": their_commit_id})
+    
+    if not commit_base or not commit_their:
+        raise ValueError("Failed to retrieve base or their commit")
+    
+    # Start with their schema and apply resolved fields
+    merged_schema = dict(commit_their["schema"])
+    
+    # Apply resolved fields
+    for field_path, resolved_value in resolved_fields.items():
+        # Simple field path resolution (could be enhanced for nested paths)
+        if "." in field_path:
+            parts = field_path.split(".")
+            current = merged_schema
+            for part in parts[:-1]:
+                if part not in current:
+                    current[part] = {}
+                current = current[part]
+            current[parts[-1]] = resolved_value
+        else:
+            merged_schema[field_path] = resolved_value
+    
+    # Get the target branch
+    form = mongo.db.forms.find_one({"_id": fid, "is_deleted": False})
+    target_branch = pending_merge["branch_name"]
+    target_commit_id = form["branches"][target_branch]
+    
+    # Create the merge commit
+    message = f"Resolve merge conflict for branch {target_branch}"
+    new_commit = create_commit(
+        form_id=fid,
+        schema=merged_schema,
+        author_id=rid,
+        message=message,
+        branch=target_branch,
+        parent_ids=[target_commit_id, their_commit_id]
+    )
+    
+    # Update pending merge status
+    mongo.db.pending_merges.update_one(
+        {"_id": pmid},
+        {
+            "$set": {
+                "status": "resolved",
+                "resolver_id": rid,
+                "resolved_at": datetime.datetime.utcnow().isoformat()
+            }
+        }
+    )
+    
+    return {
+        "status": "resolved",
+        "commit_id": new_commit["commit_id"],
+        "message": message
+    }
+
+
+def get_pending_merges(form_id):
+    """Get all pending merges for a form."""
+    fid = ObjectId(form_id) if isinstance(form_id, str) and ObjectId.is_valid(form_id) else form_id
+    
+    pending_merges = list(mongo.db.pending_merges.find({
+        "form_id": fid,
+        "status": "pending"
+    }))
+    
+    result = []
+    for pm in pending_merges:
+        result.append({
+            "id": str(pm["_id"]),
+            "branch_name": pm["branch_name"],
+            "base_commit_id": pm["base_commit_id"],
+            "their_commit_id": pm["their_commit_id"],
+            "conflict_fields": pm["conflict_fields"],
+            "created_at": pm["created_at"],
+            "created_by": str(pm["created_by"])
+        })
+        
+    return result
+
+
+def abandon_merge_conflict(form_id, pending_merge_id, user_id):
+    """Abandon a pending merge conflict."""
+    fid = ObjectId(form_id) if isinstance(form_id, str) and ObjectId.is_valid(form_id) else form_id
+    pmid = ObjectId(pending_merge_id) if isinstance(pending_merge_id, str) and ObjectId.is_valid(pending_merge_id) else pending_merge_id
+    uid = ObjectId(user_id) if isinstance(user_id, str) and ObjectId.is_valid(user_id) else user_id
+    
+    pending_merge = mongo.db.pending_merges.find_one({"_id": pmid, "form_id": fid})
+    if not pending_merge:
+        raise ValueError(f"Pending merge {pending_merge_id} not found")
+        
+    if pending_merge.get("status") != "pending":
+        raise ValueError(f"Merge {pending_merge_id} is not in pending status")
+    
+    # Only the creator or admin can abandon
+    if pending_merge["created_by"] != uid:
+        # Check if user is admin (simplified - should use proper auth service)
+        user = mongo.db.users.find_one({"_id": uid})
+        if not user or user.get("system_role") != "super_admin":
+            raise ValueError("Only the merge creator or admin can abandon the merge")
+    
+    # Update pending merge status
+    mongo.db.pending_merges.update_one(
+        {"_id": pmid},
+        {
+            "$set": {
+                "status": "abandoned",
+                "resolved_at": datetime.datetime.utcnow().isoformat()
+            }
+        }
+    )
+    
+    return {"status": "abandoned", "pending_merge_id": str(pmid)}

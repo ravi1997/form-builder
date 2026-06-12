@@ -13,6 +13,9 @@ services:
       - ../frontend/build/web:/var/www/html:ro
     depends_on:
       - backend
+    restart: unless-stopped
+    networks:
+      - formbuilder_network
 
   backend:
     build:
@@ -21,43 +24,105 @@ services:
     ports:
       - "5000:5000"
     environment:
-      - MONGO_URI=mongodb://mongo:27017/form_builder
-      - REDIS_URI=redis://redis:6379/0
-      - ELASTICSEARCH_URI=http://elasticsearch:9200
-      - FLASK_ENV=development
+      - FLASK_ENV=production
+      - MONGO_URI=mongodb://mongodb:27017/formbuilder
+      - REDIS_URL=redis://redis:6379/0
+      - ELASTICSEARCH_URL=http://elasticsearch:9200
+      - CLAMAV_HOST=clamav
+      - CLAMAV_PORT=3310
     volumes:
       - upload_volume:/app/uploads
+      - ./backend/logs:/app/logs
     depends_on:
-      - mongo
+      - mongodb
       - redis
       - elasticsearch
+      - clamav
+    restart: unless-stopped
+    networks:
+      - formbuilder_network
 
   celery_worker:
     build:
       context: ../backend
       dockerfile: ../docker/backend/Dockerfile
-    command: celery -A app.wsgi.celery worker --loglevel=info
+    command: celery -A app.wsgi.celery worker --loglevel=info --concurrency=${CELERY_CONCURRENCY:-4}
     environment:
-      - MONGO_URI=mongodb://mongo:27017/form_builder
-      - REDIS_URI=redis://redis:6379/0
-      - ELASTICSEARCH_URI=http://elasticsearch:9200
+      - FLASK_ENV=production
+      - MONGO_URI=mongodb://mongodb:27017/formbuilder
+      - REDIS_URL=redis://redis:6379/0
+      - ELASTICSEARCH_URL=http://elasticsearch:9200
+      - CLAMAV_HOST=clamav
+      - CLAMAV_PORT=3310
     volumes:
       - upload_volume:/app/uploads
+      - ./backend/logs:/app/logs
     depends_on:
       - redis
-      - mongo
+      - mongodb
+      - elasticsearch
+      - clamav
+    restart: unless-stopped
+    networks:
+      - formbuilder_network
 
-  mongo:
+  celery_beat:
+    build:
+      context: ../backend
+      dockerfile: ../docker/backend/Dockerfile
+    command: celery -A app.wsgi.celery beat --loglevel=info --scheduler=celery.beat.PersistentScheduler
+    environment:
+      - FLASK_ENV=production
+      - MONGO_URI=mongodb://mongodb:27017/formbuilder
+      - REDIS_URL=redis://redis:6379/0
+      - ELASTICSEARCH_URL=http://elasticsearch:9200
+    volumes:
+      - ./backend/celerybeat-schedule:/app/celerybeat-schedule
+    depends_on:
+      - redis
+      - mongodb
+      - elasticsearch
+    restart: unless-stopped
+    networks:
+      - formbuilder_network
+
+  flower:
+    image: celeryflower:latest
+    ports:
+      - "5555:5555"
+    environment:
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - FLOWER_PORT=5555
+    depends_on:
+      - redis
+    restart: unless-stopped
+    networks:
+      - formbuilder_network
+
+  mongodb:
     image: mongo:7.0
     ports:
-      - "27018:27017"
+      - "27017:27017"
     volumes:
-      - mongo_data:/data/db
+      - mongodb_data:/data/db
+      - ./docker/mongodb/init-mongo.js:/docker-entrypoint-initdb.d/init-mongo.js:ro
+    environment:
+      - MONGO_INITDB_DATABASE=formbuilder
+    restart: unless-stopped
+    networks:
+      - formbuilder_network
 
   redis:
     image: redis:7.0-alpine
     ports:
-      - "6380:6379"
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    restart: unless-stopped
+    networks:
+      - formbuilder_network
 
   elasticsearch:
     image: elasticsearch:8.11.1
@@ -66,11 +131,60 @@ services:
     environment:
       - discovery.type=single-node
       - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
     volumes:
-      - es_data:/usr/share/elasticsearch/data
+      - elasticsearch_data:/usr/share/elasticsearch/data
+    restart: unless-stopped
+    networks:
+      - formbuilder_network
+
+  clamav:
+    image: clamav/clamav:latest
+    ports:
+      - "3310:3310"
+    volumes:
+      - clamav_data:/var/lib/clamav
+      - upload_volume:/scan
+    restart: unless-stopped
+    networks:
+      - formbuilder_network
+
+  # Optional: Redis Commander for web-based Redis management
+  redis_commander:
+    image: rediscommander/redis-commander:latest
+    ports:
+      - "8081:8081"
+    environment:
+      - REDIS_HOSTS=local:redis:6379
+    depends_on:
+      - redis
+    restart: unless-stopped
+    networks:
+      - formbuilder_network
+
+  # Optional: Mongo Express for web-based MongoDB management
+  mongo_express:
+    image: mongo-express:latest
+    ports:
+      - "8082:8081"
+    environment:
+      - ME_CONFIG_MONGODB_SERVER=mongodb
+      - ME_CONFIG_MONGODB_PORT=27017
+      - ME_CONFIG_BASICAUTH_USERNAME=admin
+      - ME_CONFIG_BASICAUTH_PASSWORD=admin123
+    depends_on:
+      - mongodb
+    restart: unless-stopped
+    networks:
+      - formbuilder_network
 
 volumes:
-  mongo_data:
-  es_data:
+  mongodb_data:
+  redis_data:
+  elasticsearch_data:
+  clamav_data:
   upload_volume:
-  web_static_volume:
+
+networks:
+  formbuilder_network:
+    driver: bridge

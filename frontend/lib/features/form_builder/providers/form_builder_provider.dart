@@ -2,6 +2,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../shared/json_ui_engine/models/validation_rule.dart';
 import '../../../shared/json_ui_engine/models/visibility_rule.dart';
+import '../../../core/formula/formula_parser.dart';
+import 'logic_validator.dart';
 
 class FormQuestion {
   final String id;
@@ -338,6 +340,230 @@ class FormStyle {
   }
 }
 
+class FormNotifications {
+  final bool emailEnabled;
+  final String emailTriggerEvent;
+  final List<String> emailRecipients;
+  final bool emailIncludePayload;
+  final bool emailIncludeAttachments;
+
+  final bool webhookEnabled;
+  final String webhookUrl;
+  final String webhookSecret;
+  final String webhookContentType;
+
+  final bool internalEnabled;
+  final List<String> internalUserIds;
+  final List<String> internalTeamIds;
+
+  final int retryAttempts;
+  final bool alertOwnerOnFailure;
+
+  FormNotifications({
+    this.emailEnabled = false,
+    this.emailTriggerEvent = 'on_submission',
+    this.emailRecipients = const [],
+    this.emailIncludePayload = true,
+    this.emailIncludeAttachments = false,
+    this.webhookEnabled = false,
+    this.webhookUrl = '',
+    this.webhookSecret = '',
+    this.webhookContentType = 'application/json',
+    this.internalEnabled = false,
+    this.internalUserIds = const [],
+    this.internalTeamIds = const [],
+    this.retryAttempts = 3,
+    this.alertOwnerOnFailure = true,
+  });
+
+  FormNotifications copyWith({
+    bool? emailEnabled,
+    String? emailTriggerEvent,
+    List<String>? emailRecipients,
+    bool? emailIncludePayload,
+    bool? emailIncludeAttachments,
+    bool? webhookEnabled,
+    String? webhookUrl,
+    String? webhookSecret,
+    String? webhookContentType,
+    bool? internalEnabled,
+    List<String>? internalUserIds,
+    List<String>? internalTeamIds,
+    int? retryAttempts,
+    bool? alertOwnerOnFailure,
+  }) {
+    return FormNotifications(
+      emailEnabled: emailEnabled ?? this.emailEnabled,
+      emailTriggerEvent: emailTriggerEvent ?? this.emailTriggerEvent,
+      emailRecipients: emailRecipients ?? this.emailRecipients,
+      emailIncludePayload: emailIncludePayload ?? this.emailIncludePayload,
+      emailIncludeAttachments: emailIncludeAttachments ?? this.emailIncludeAttachments,
+      webhookEnabled: webhookEnabled ?? this.webhookEnabled,
+      webhookUrl: webhookUrl ?? this.webhookUrl,
+      webhookSecret: webhookSecret ?? this.webhookSecret,
+      webhookContentType: webhookContentType ?? this.webhookContentType,
+      internalEnabled: internalEnabled ?? this.internalEnabled,
+      internalUserIds: internalUserIds ?? this.internalUserIds,
+      internalTeamIds: internalTeamIds ?? this.internalTeamIds,
+      retryAttempts: retryAttempts ?? this.retryAttempts,
+      alertOwnerOnFailure: alertOwnerOnFailure ?? this.alertOwnerOnFailure,
+    );
+  }
+}
+
+class FormAnalyticsSettings {
+  final bool enabled;
+  final String startEventType; // 'form_load', 'first_interaction', 'first_input'
+  final String endEventType; // 'submit_success', 'submit_attempt'
+  final bool dropOffEnabled;
+  final bool timingEnabled;
+  final bool utmCaptureEnabled;
+
+  FormAnalyticsSettings({
+    this.enabled = true,
+    this.startEventType = 'first_interaction',
+    this.endEventType = 'submit_success',
+    this.dropOffEnabled = true,
+    this.timingEnabled = true,
+    this.utmCaptureEnabled = true,
+  });
+
+  FormAnalyticsSettings copyWith({
+    bool? enabled,
+    String? startEventType,
+    String? endEventType,
+    bool? dropOffEnabled,
+    bool? timingEnabled,
+    bool? utmCaptureEnabled,
+  }) {
+    return FormAnalyticsSettings(
+      enabled: enabled ?? this.enabled,
+      startEventType: startEventType ?? this.startEventType,
+      endEventType: endEventType ?? this.endEventType,
+      dropOffEnabled: dropOffEnabled ?? this.dropOffEnabled,
+      timingEnabled: timingEnabled ?? this.timingEnabled,
+      utmCaptureEnabled: utmCaptureEnabled ?? this.utmCaptureEnabled,
+    );
+  }
+}
+
+enum FormCanvasMode { edit, play, split }
+
+class FormPlayState {
+  final Map<String, dynamic> answers;
+  final Map<String, String> validationErrors;
+
+  FormPlayState({
+    this.answers = const {},
+    this.validationErrors = const {},
+  });
+
+  FormPlayState copyWith({
+    Map<String, dynamic>? answers,
+    Map<String, String>? validationErrors,
+  }) {
+    return FormPlayState(
+      answers: answers ?? this.answers,
+      validationErrors: validationErrors ?? this.validationErrors,
+    );
+  }
+}
+
+class FormPlayNotifier extends Notifier<FormPlayState> {
+  @override
+  FormPlayState build() {
+    return FormPlayState();
+  }
+
+  void setAnswer(String questionId, dynamic value) {
+    final newAnswers = Map<String, dynamic>.from(state.answers);
+    if (value == null) {
+      newAnswers.remove(questionId);
+    } else {
+      newAnswers[questionId] = value;
+    }
+    state = state.copyWith(answers: newAnswers);
+
+    try {
+      final sections = ref.read(formBuilderProvider).sections;
+      evaluateFormulas(sections);
+    } catch (_) {}
+  }
+
+  void evaluateFormulas(List<FormSection> sections) {
+    final variables = <String, double>{};
+    state.answers.forEach((key, val) {
+      if (val is num) {
+        variables[key] = val.toDouble();
+      } else if (val is String) {
+        final parsed = double.tryParse(val);
+        if (parsed != null) {
+          variables[key] = parsed;
+        }
+      }
+    });
+
+    final newAnswers = Map<String, dynamic>.from(state.answers);
+    bool changed = false;
+
+    // Run up to 5 iterations for cascading/dependent formulas
+    for (int iter = 0; iter < 5; iter++) {
+      bool localChanged = false;
+      for (final sec in sections) {
+        for (final subSec in sec.subSections) {
+          for (final q in subSec.questions) {
+            if (q.calculations.isNotEmpty) {
+              for (final calc in q.calculations) {
+                if (calc is Map && calc.containsKey('formula')) {
+                  final formula = calc['formula'] as String;
+                  try {
+                    final parser = FormulaParser(formula);
+                    final ast = parser.parse();
+                    final computed = ast.evaluate(variables);
+                    
+                    final oldVal = newAnswers[q.id];
+                    if (oldVal != computed) {
+                      newAnswers[q.id] = computed;
+                      variables[q.id] = computed;
+                      localChanged = true;
+                      changed = true;
+                    }
+                  } catch (_) {}
+                }
+              }
+            }
+          }
+        }
+      }
+      if (!localChanged) break;
+    }
+
+    if (changed) {
+      state = state.copyWith(answers: newAnswers);
+    }
+  }
+
+  void setError(String questionId, String error) {
+    final newErrors = Map<String, String>.from(state.validationErrors);
+    newErrors[questionId] = error;
+    state = state.copyWith(validationErrors: newErrors);
+  }
+
+  void clearError(String questionId) {
+    final newErrors = Map<String, String>.from(state.validationErrors);
+    newErrors.remove(questionId);
+    state = state.copyWith(validationErrors: newErrors);
+  }
+
+  void reset() {
+    state = FormPlayState();
+  }
+}
+
+final formPlayProvider = NotifierProvider<FormPlayNotifier, FormPlayState>(() {
+  return FormPlayNotifier();
+});
+
 class FormBuilderState {
   final String formId;
   final String name;
@@ -345,6 +571,10 @@ class FormBuilderState {
   final List<FormSection> sections;
   final String? selectedElementId; // Currently selected Section/SubSection/Question ID
   final FormStyle style;
+  final FormCanvasMode canvasMode;
+  final List<LogicValidationIssue> logicIssues;
+  final FormNotifications notifications;
+  final FormAnalyticsSettings analytics;
 
   FormBuilderState({
     required this.formId,
@@ -353,7 +583,12 @@ class FormBuilderState {
     required this.sections,
     this.selectedElementId,
     required this.style,
-  });
+    this.canvasMode = FormCanvasMode.edit,
+    this.logicIssues = const [],
+    FormNotifications? notifications,
+    FormAnalyticsSettings? analytics,
+  }) : notifications = notifications ?? FormNotifications(),
+       analytics = analytics ?? FormAnalyticsSettings();
 
   FormBuilderState copyWith({
     String? formId,
@@ -362,14 +597,23 @@ class FormBuilderState {
     List<FormSection>? sections,
     String? selectedElementId,
     FormStyle? style,
+    FormCanvasMode? canvasMode,
+    bool clearSelectedElementId = false,
+    List<LogicValidationIssue>? logicIssues,
+    FormNotifications? notifications,
+    FormAnalyticsSettings? analytics,
   }) {
     return FormBuilderState(
       formId: formId ?? this.formId,
       name: name ?? this.name,
       description: description ?? this.description,
       sections: sections ?? List<FormSection>.from(this.sections),
-      selectedElementId: selectedElementId ?? this.selectedElementId,
+      selectedElementId: clearSelectedElementId ? null : (selectedElementId ?? this.selectedElementId),
       style: style ?? this.style,
+      canvasMode: canvasMode ?? this.canvasMode,
+      logicIssues: logicIssues ?? this.logicIssues,
+      notifications: notifications ?? this.notifications,
+      analytics: analytics ?? this.analytics,
     );
   }
 }
@@ -377,10 +621,12 @@ class FormBuilderState {
 class FormBuilderNotifier extends Notifier<FormBuilderState> {
   @override
   FormBuilderState build() {
-    return FormBuilderState(
+    final initialState = FormBuilderState(
       formId: 'default',
       name: 'My Custom Form',
       style: FormStyle(),
+      canvasMode: FormCanvasMode.edit,
+      notifications: FormNotifications(),
       sections: [
         FormSection(
           id: 'sec_1',
@@ -395,6 +641,18 @@ class FormBuilderNotifier extends Notifier<FormBuilderState> {
         ),
       ],
     );
+    final issues = LogicGraphValidator.validate(initialState);
+    return initialState.copyWith(logicIssues: issues);
+  }
+
+  @override
+  set state(FormBuilderState value) {
+    final issues = LogicGraphValidator.validate(value);
+    super.state = value.copyWith(logicIssues: issues);
+  }
+
+  void setCanvasMode(FormCanvasMode mode) {
+    state = state.copyWith(canvasMode: mode);
   }
 
   void updateStyle({
@@ -421,8 +679,67 @@ class FormBuilderNotifier extends Notifier<FormBuilderState> {
     );
   }
 
+  void updateNotifications({
+    bool? emailEnabled,
+    String? emailTriggerEvent,
+    List<String>? emailRecipients,
+    bool? emailIncludePayload,
+    bool? emailIncludeAttachments,
+    bool? webhookEnabled,
+    String? webhookUrl,
+    String? webhookSecret,
+    String? webhookContentType,
+    bool? internalEnabled,
+    List<String>? internalUserIds,
+    List<String>? internalTeamIds,
+    int? retryAttempts,
+    bool? alertOwnerOnFailure,
+  }) {
+    state = state.copyWith(
+      notifications: state.notifications.copyWith(
+        emailEnabled: emailEnabled,
+        emailTriggerEvent: emailTriggerEvent,
+        emailRecipients: emailRecipients,
+        emailIncludePayload: emailIncludePayload,
+        emailIncludeAttachments: emailIncludeAttachments,
+        webhookEnabled: webhookEnabled,
+        webhookUrl: webhookUrl,
+        webhookSecret: webhookSecret,
+        webhookContentType: webhookContentType,
+        internalEnabled: internalEnabled,
+        internalUserIds: internalUserIds,
+        internalTeamIds: internalTeamIds,
+        retryAttempts: retryAttempts,
+        alertOwnerOnFailure: alertOwnerOnFailure,
+      ),
+    );
+  }
+
+  void updateAnalytics({
+    bool? enabled,
+    String? startEventType,
+    String? endEventType,
+    bool? dropOffEnabled,
+    bool? timingEnabled,
+    bool? utmCaptureEnabled,
+  }) {
+    state = state.copyWith(
+      analytics: state.analytics.copyWith(
+        enabled: enabled,
+        startEventType: startEventType,
+        endEventType: endEventType,
+        dropOffEnabled: dropOffEnabled,
+        timingEnabled: timingEnabled,
+        utmCaptureEnabled: utmCaptureEnabled,
+      ),
+    );
+  }
+
   void selectElement(String? id) {
-    state = state.copyWith(selectedElementId: id);
+    state = state.copyWith(
+      selectedElementId: id,
+      clearSelectedElementId: id == null,
+    );
   }
 
   void addSection() {
@@ -438,6 +755,62 @@ class FormBuilderNotifier extends Notifier<FormBuilderState> {
       ],
     );
     state = state.copyWith(sections: [...state.sections, newSec]);
+  }
+
+  void insertQuestion(String subSecId, int index, FormQuestion question) {
+    state = state.copyWith(
+      sections: state.sections.map((sec) {
+        return sec.copyWith(
+          subSections: sec.subSections.map((sub) {
+            if (sub.id != subSecId) return sub;
+            final qs = [...sub.questions];
+            if (index < 0) {
+              qs.add(question);
+            } else {
+              qs.insert(index.clamp(0, qs.length), question);
+            }
+            return sub.copyWith(questions: qs);
+          }).toList(),
+        );
+      }).toList(),
+    );
+  }
+
+  void moveQuestion({
+    required String fromSubSecId,
+    required String toSubSecId,
+    required String questionId,
+    required int toIndex,
+  }) {
+    FormQuestion? targetQ;
+    for (final sec in state.sections) {
+      for (final sub in sec.subSections) {
+        if (sub.id == fromSubSecId) {
+          for (final q in sub.questions) {
+            if (q.id == questionId) {
+              targetQ = q;
+              break;
+            }
+          }
+        }
+      }
+    }
+    if (targetQ == null) return;
+
+    state = state.copyWith(
+      sections: state.sections.map((sec) {
+        return sec.copyWith(
+          subSections: sec.subSections.map((sub) {
+            if (sub.id != fromSubSecId) return sub;
+            return sub.copyWith(
+              questions: sub.questions.where((q) => q.id != questionId).toList(),
+            );
+          }).toList(),
+        );
+      }).toList(),
+    );
+
+    insertQuestion(toSubSecId, toIndex, targetQ);
   }
 
   void updateSection(
@@ -624,6 +997,7 @@ class FormBuilderNotifier extends Notifier<FormBuilderState> {
     String? description,
     bool? required,
     Map<String, dynamic>? properties,
+    VisibilityRules? visibilityRules,
   }) {
     state = state.copyWith(
       sections: state.sections.map((sec) {
@@ -637,6 +1011,7 @@ class FormBuilderNotifier extends Notifier<FormBuilderState> {
                   description: description ?? q.description,
                   required: required ?? q.required,
                   properties: properties ?? q.properties,
+                  visibilityRules: visibilityRules ?? q.visibilityRules,
                 );
               }).toList(),
             );
@@ -665,6 +1040,7 @@ class FormBuilderNotifier extends Notifier<FormBuilderState> {
         selectedElementId: state.selectedElementId == id
             ? null
             : state.selectedElementId,
+        clearSelectedElementId: state.selectedElementId == id,
       );
       return;
     }
@@ -685,6 +1061,7 @@ class FormBuilderNotifier extends Notifier<FormBuilderState> {
         selectedElementId: state.selectedElementId == id
             ? null
             : state.selectedElementId,
+        clearSelectedElementId: state.selectedElementId == id,
       );
       return;
     }
@@ -696,6 +1073,7 @@ class FormBuilderNotifier extends Notifier<FormBuilderState> {
       selectedElementId: state.selectedElementId == id
           ? null
           : state.selectedElementId,
+      clearSelectedElementId: state.selectedElementId == id,
     );
   }
 }

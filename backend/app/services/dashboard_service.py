@@ -1,11 +1,22 @@
 import datetime
 import uuid
 import json
-import hashlib
+from typing import Optional, Dict, Any, List, Union
+import logging
 from bson import ObjectId
 from app.extensions import mongo, redis_client
+from app.models.dashboard import (
+    Dashboard, Widget, Canvas, DashboardSettings, DashboardTheme,
+    DashboardResponse, LinkedAnalysis, AnalysisOutputNode,
+    WidgetDataResponse, CanvasDataResponse, FilterOptionsResponse
+)
+from app.services.audit_service import audit_service
 
-def map_node_type_to_output_type(node_type):
+logger = logging.getLogger(__name__)
+
+
+def map_node_type_to_output_type(node_type: str) -> str:
+    """Map analysis node type to output type."""
     if node_type in ("kpi_value", "scalar_aggregator"):
         return "value"
     elif node_type in ("table_output", "table_generator"):
@@ -14,7 +25,9 @@ def map_node_type_to_output_type(node_type):
         return "chart_data"
     return "unknown"
 
-def serialize_doc(doc):
+
+def serialize_doc(doc: Any) -> Any:
+    """Serialize MongoDB document for JSON response."""
     if not doc:
         return doc
     if isinstance(doc, list):
@@ -37,7 +50,8 @@ def serialize_doc(doc):
         return str(doc)
     return doc
 
-def apply_filters(result_data: dict, widget: dict, filter_state: dict) -> dict:
+
+def apply_filters(result_data: Dict[str, Any], widget: Dict[str, Any], filter_state: Dict[str, Any]) -> Dict[str, Any]:
     """
     Applies active filter state to the result data.
     Only table/dataframe-like structures support row filtering.
@@ -46,7 +60,6 @@ def apply_filters(result_data: dict, widget: dict, filter_state: dict) -> dict:
         return result_data
 
     # Table rows could be in result_data['rows'] directly, or under result_data['out']['rows']
-    # If the top level has 'rows', filter it. If it doesn't but has 'out', check if 'out' is a dict and has 'rows'
     target_dict = result_data
     if "rows" not in target_dict and isinstance(target_dict.get("out"), dict):
         target_dict = target_dict["out"]
@@ -94,8 +107,12 @@ def apply_filters(result_data: dict, widget: dict, filter_state: dict) -> dict:
 
     return result_data
 
+
 class DashboardService:
-    def _project_query(self, project_oid, context=None):
+    """Service for dashboard operations with canvas and widget management."""
+
+    def _project_query(self, project_oid: ObjectId, context: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """Build project query with access control."""
         query = {"_id": project_oid, "is_deleted": False}
         if context and context.get("system_role") != "super_admin":
             org_ids = context.get("org_ids", [])
@@ -103,7 +120,8 @@ class DashboardService:
                 query["org_id"] = {"$in": [ObjectId(org_id) if ObjectId.is_valid(org_id) else org_id for org_id in org_ids]}
         return query
 
-    def _dashboard_query(self, dashboard_oid, context=None):
+    def _dashboard_query(self, dashboard_oid: ObjectId, context: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """Build dashboard query with access control."""
         query = {"_id": dashboard_oid, "is_deleted": False}
         if context and context.get("system_role") != "super_admin":
             org_ids = context.get("org_ids", [])
@@ -111,7 +129,8 @@ class DashboardService:
                 query["org_id"] = {"$in": [ObjectId(org_id) if ObjectId.is_valid(org_id) else org_id for org_id in org_ids]}
         return query
 
-    def _analysis_query(self, analysis_oid, context=None):
+    def _analysis_query(self, analysis_oid: ObjectId, context: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """Build analysis query with access control."""
         query = {"_id": analysis_oid, "is_deleted": False}
         if context and context.get("system_role") != "super_admin":
             org_ids = context.get("org_ids", [])
@@ -119,7 +138,8 @@ class DashboardService:
                 query["org_id"] = {"$in": [ObjectId(org_id) if ObjectId.is_valid(org_id) else org_id for org_id in org_ids]}
         return query
 
-    def create_dashboard(self, data, author_id, context=None):
+    def create_dashboard(self, data: Dict[str, Any], author_id: str, context: Optional[Dict[str, Any]] = None) -> Dashboard:
+        """Create a new dashboard with canvas structure and audit logging."""
         project_id = data.get("project_id")
         if not project_id:
             raise ValueError("project_id is required")
@@ -150,10 +170,10 @@ class DashboardService:
         if description and len(description) > 500:
             raise ValueError("Description exceeds 500 characters")
             
-        canvas = data.get("canvas") or {}
-        width = canvas.get("width", 1920)
-        height = canvas.get("height", 1080)
-        bg_color = canvas.get("background_color", "#F5F5F5")
+        canvas_data = data.get("canvas") or {}
+        width = canvas_data.get("width", 1920)
+        height = canvas_data.get("height", 1080)
+        bg_color = canvas_data.get("background_color", "#F5F5F5")
         
         if not (800 <= width <= 7680):
             raise ValueError("Canvas width must be between 800 and 7680")
@@ -163,17 +183,19 @@ class DashboardService:
         # Widgets must be empty on creation
         widgets = []
         
-        settings = data.get("settings") or {}
-        auto_refresh = settings.get("auto_refresh", False)
-        refresh_interval = settings.get("refresh_interval_seconds", 60)
+        settings_data = data.get("settings") or {}
+        auto_refresh = settings_data.get("auto_refresh", False)
+        refresh_interval = settings_data.get("refresh_interval_seconds", 60)
         if auto_refresh and not (10 <= refresh_interval <= 3600):
             raise ValueError("Refresh interval must be between 10 and 3600 seconds")
             
-        theme = settings.get("theme") or {
+        theme_data = settings_data.get("theme") or {
             "font_family": "Inter",
             "primary_color": "#1976D2",
             "border_radius": 8
         }
+        
+        author_oid = ObjectId(author_id) if author_id and ObjectId.is_valid(author_id) else author_id
         
         dashboard_doc = {
             "org_id": org_id,
@@ -191,20 +213,44 @@ class DashboardService:
             "settings": {
                 "auto_refresh": auto_refresh,
                 "refresh_interval_seconds": refresh_interval,
-                "theme": theme
+                "theme": theme_data
             },
             "linked_analysis_ids": [],
             "created_at": datetime.datetime.utcnow().isoformat(),
             "updated_at": datetime.datetime.utcnow().isoformat(),
-            "created_by": ObjectId(author_id) if author_id and ObjectId.is_valid(author_id) else author_id,
+            "created_by": author_oid,
             "is_deleted": False,
             "deleted_at": None
         }
         
-        mongo.db.dashboards.insert_one(dashboard_doc)
+        result = mongo.db.dashboards.insert_one(dashboard_doc)
+        dashboard_doc["_id"] = result.inserted_id
+        
+        # Log audit event
+        try:
+            audit_service.log_action(
+                entity_type="dashboard",
+                entity_id=result.inserted_id,
+                action="create",
+                actor_id=author_oid,
+                actor_role="user",
+                before={},
+                after={
+                    "name": name,
+                    "project_id": str(project_oid),
+                    "org_id": str(org_id) if org_id else None,
+                    "canvas_width": width,
+                    "canvas_height": height
+                }
+            )
+        except Exception as e:
+            logger.error(f"Failed to log dashboard creation audit event: {e}")
+        
         return dashboard_doc
 
-    def list_dashboards(self, project_id, page=1, per_page=20, search_text=None, context=None):
+    def list_dashboards(self, project_id: str, page: int = 1, per_page: int = 20, 
+                       search_text: Optional[str] = None, context: Optional[Dict[str, Any]] = None) -> tuple[List[Dict[str, Any]], Dict[str, Any]]:
+        """List dashboards for a project with pagination."""
         project_oid = ObjectId(project_id) if ObjectId.is_valid(project_id) else project_id
         query = {"project_id": project_oid, "is_deleted": False}
         project = mongo.db.projects.find_one(self._project_query(project_oid, context))
@@ -250,7 +296,8 @@ class DashboardService:
             "total_pages": total_pages
         }
 
-    def get_dashboard(self, dashboard_id, context=None):
+    def get_dashboard(self, dashboard_id: str, context: Optional[Dict[str, Any]] = None) -> Optional[DashboardResponse]:
+        """Get dashboard details with linked analyses."""
         d_oid = ObjectId(dashboard_id) if ObjectId.is_valid(dashboard_id) else dashboard_id
         dashboard = mongo.db.dashboards.find_one(self._dashboard_query(d_oid, context))
         if not dashboard:
@@ -305,13 +352,16 @@ class DashboardService:
             "linked_analyses": linked_analyses
         }
 
-    def update_dashboard(self, dashboard_id, data, context=None):
+    def update_dashboard(self, dashboard_id: str, data: Dict[str, Any], context: Optional[Dict[str, Any]] = None) -> Optional[DashboardResponse]:
+        """Update dashboard metadata with audit logging."""
         d_oid = ObjectId(dashboard_id) if ObjectId.is_valid(dashboard_id) else dashboard_id
         dashboard = mongo.db.dashboards.find_one(self._dashboard_query(d_oid, context))
         if not dashboard:
             return None
             
         update_fields = {}
+        before_state = {}
+        after_state = {}
         
         name = data.get("name")
         if name is not None:
@@ -320,6 +370,9 @@ class DashboardService:
                 raise ValueError("Dashboard name is required")
             if len(name) > 120:
                 raise ValueError("Dashboard name exceeds 120 characters")
+                
+            before_state["name"] = dashboard.get("name")
+            after_state["name"] = name
                 
             # Verify uniqueness
             existing = mongo.db.dashboards.find_one({
@@ -336,6 +389,8 @@ class DashboardService:
         if description is not None:
             if len(description) > 500:
                 raise ValueError("Description exceeds 500 characters")
+            before_state["description"] = dashboard.get("description")
+            after_state["description"] = description
             update_fields["description"] = description
             
         settings = data.get("settings")
@@ -347,21 +402,51 @@ class DashboardService:
             if auto_refresh and not (10 <= refresh_interval <= 3600):
                 raise ValueError("Refresh interval must be between 10 and 3600 seconds")
                 
+            before_state["settings"] = current_settings
             merged_settings = {
                 "auto_refresh": auto_refresh,
                 "refresh_interval_seconds": refresh_interval,
                 "theme": {**(current_settings.get("theme") or {}), **(settings.get("theme") or {})}
             }
+            after_state["settings"] = merged_settings
             update_fields["settings"] = merged_settings
             
         if update_fields:
             update_fields["updated_at"] = datetime.datetime.utcnow().isoformat()
             mongo.db.dashboards.update_one(self._dashboard_query(d_oid, context), {"$set": update_fields})
             
+            # Log audit event
+            try:
+                audit_service.log_action(
+                    entity_type="dashboard",
+                    entity_id=d_oid,
+                    action="update",
+                    actor_id=dashboard.get("created_by"),
+                    actor_role="user",
+                    before=before_state,
+                    after=after_state
+                )
+            except Exception as e:
+                logger.error(f"Failed to log dashboard update audit event: {e}")
+            
         return self.get_dashboard(dashboard_id, context)
 
-    def delete_dashboard(self, dashboard_id, context=None):
+    def delete_dashboard(self, dashboard_id: str, context: Optional[Dict[str, Any]] = None, deleted_by: Optional[str] = None) -> None:
+        """Soft delete a dashboard with audit logging."""
         d_oid = ObjectId(dashboard_id) if ObjectId.is_valid(dashboard_id) else dashboard_id
+        dashboard = mongo.db.dashboards.find_one(self._dashboard_query(d_oid, context))
+        if not dashboard:
+            raise ValueError("Dashboard not found")
+        
+        before_state = {
+            "name": dashboard.get("name"),
+            "project_id": str(dashboard.get("project_id")),
+            "org_id": str(dashboard.get("org_id")) if dashboard.get("org_id") else None,
+            "is_deleted": False
+        }
+        
+        deleted_by_oid = ObjectId(deleted_by) if deleted_by and ObjectId.is_valid(deleted_by) else deleted_by
+        
         mongo.db.dashboards.update_one(
             self._dashboard_query(d_oid, context),
             {"$set": {
@@ -370,8 +455,23 @@ class DashboardService:
                 "updated_at": datetime.datetime.utcnow().isoformat()
             }}
         )
+        
+        # Log audit event
+        try:
+            audit_service.log_action(
+                entity_type="dashboard",
+                entity_id=d_oid,
+                action="delete",
+                actor_id=deleted_by_oid or dashboard.get("created_by"),
+                actor_role="user",
+                before=before_state,
+                after={"is_deleted": True, "deleted_at": datetime.datetime.utcnow().isoformat()}
+            )
+        except Exception as e:
+            logger.error(f"Failed to log dashboard deletion audit event: {e}")
 
-    def save_canvas(self, dashboard_id, canvas, context=None):
+    def save_canvas(self, dashboard_id: str, canvas: Dict[str, Any], context: Optional[Dict[str, Any]] = None, author_id: Optional[str] = None) -> Optional[DashboardResponse]:
+        """Save dashboard canvas with widgets and audit logging."""
         d_oid = ObjectId(dashboard_id) if ObjectId.is_valid(dashboard_id) else dashboard_id
         dashboard = mongo.db.dashboards.find_one(self._dashboard_query(d_oid, context))
         if not dashboard:
@@ -494,19 +594,23 @@ class DashboardService:
         )
         
         # Write Audit Log
-        mongo.db.audit_logs.insert_one({
-            "org_id": dashboard.get("org_id"),
-            "entity_type": "dashboard",
-            "entity_id": d_oid,
-            "action": "canvas_saved",
-            "before": {"widget_count": before_widget_count},
-            "after": {"widget_count": after_widget_count},
-            "timestamp": datetime.datetime.utcnow().isoformat()
-        })
+        try:
+            audit_service.log_action(
+                entity_type="dashboard",
+                entity_id=d_oid,
+                action="canvas_saved",
+                actor_id=ObjectId(author_id) if author_id and ObjectId.is_valid(author_id) else dashboard.get("created_by"),
+                actor_role="user",
+                before={"widget_count": before_widget_count, "canvas_width": dashboard.get("canvas", {}).get("width"), "canvas_height": dashboard.get("canvas", {}).get("height")},
+                after={"widget_count": after_widget_count, "canvas_width": width, "canvas_height": height}
+            )
+        except Exception as e:
+            logger.error(f"Failed to log canvas save audit event: {e}")
         
         return self.get_dashboard(dashboard_id, context)
 
-    def resolve_widget_data(self, dashboard, filter_state=None):
+    def resolve_widget_data(self, dashboard: Dict[str, Any], filter_state: Optional[Dict[str, Any]] = None) -> Dict[str, WidgetDataResponse]:
+        """Resolve widget data from analysis results."""
         if not filter_state:
             filter_state = {}
             
@@ -604,7 +708,8 @@ class DashboardService:
             
         return widget_data
 
-    def get_filter_options(self, analysis_id, node_id, column, limit=200, context=None):
+    def get_filter_options(self, analysis_id: str, node_id: str, column: str, limit: int = 200, context: Optional[Dict[str, Any]] = None) -> FilterOptionsResponse:
+        """Get filter options for a column from analysis results."""
         a_oid = ObjectId(analysis_id) if ObjectId.is_valid(analysis_id) else analysis_id
         analysis = mongo.db.analyses.find_one(self._analysis_query(a_oid, context))
         if not analysis:
@@ -672,7 +777,8 @@ class DashboardService:
                 
         return result_payload
 
-    def create_snapshot(self, dashboard_id, author_id, context=None):
+    def create_snapshot(self, dashboard_id: str, author_id: str, context: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        """Create a dashboard snapshot."""
         d_oid = ObjectId(dashboard_id) if ObjectId.is_valid(dashboard_id) else dashboard_id
         dashboard = mongo.db.dashboards.find_one(self._dashboard_query(d_oid, context))
         if not dashboard:
@@ -704,5 +810,155 @@ class DashboardService:
         
         mongo.db.dashboard_snapshots.insert_one(snapshot_doc)
         return snapshot_doc
+
+    def enable_public_sharing(self, dashboard_id: str, author_id: Optional[str] = None) -> Dict[str, Any]:
+        """Enable public sharing for a dashboard with audit logging."""
+        d_oid = ObjectId(dashboard_id) if ObjectId.is_valid(dashboard_id) else dashboard_id
+        dashboard = mongo.db.dashboards.find_one({"_id": d_oid, "is_deleted": False})
+        if not dashboard:
+            raise ValueError("Dashboard not found")
+
+        token = str(uuid.uuid4())
+        mongo.db.dashboards.update_one(
+            {"_id": d_oid},
+            {
+                "$set": {
+                    "is_public": True,
+                    "public_token": token,
+                    "updated_at": datetime.datetime.utcnow().isoformat(),
+                }
+            },
+        )
+
+        # Log audit event
+        try:
+            audit_service.log_action(
+                entity_type="dashboard",
+                entity_id=d_oid,
+                action="dashboard_made_public",
+                actor_id=ObjectId(author_id) if author_id and ObjectId.is_valid(author_id) else dashboard.get("created_by"),
+                actor_role="user",
+                before={"is_public": False},
+                after={"is_public": True, "public_token": token}
+            )
+        except Exception as e:
+            logger.error(f"Failed to log public sharing audit event: {e}")
+
+        platform_config = mongo.db.system_config.find_one({"key": "platform_url"})
+        platform_url = platform_config.get("value") if platform_config else "http://localhost:5000"
+        public_url = f"{platform_url.rstrip('/')}/api/v1/public/dashboards/{token}"
+
+        return {
+            "is_public": True,
+            "public_token": token,
+            "public_url": public_url
+        }
+
+    def revoke_public_sharing(self, dashboard_id: str, author_id: Optional[str] = None) -> None:
+        """Revoke public sharing for a dashboard with audit logging."""
+        d_oid = ObjectId(dashboard_id) if ObjectId.is_valid(dashboard_id) else dashboard_id
+        dashboard = mongo.db.dashboards.find_one({"_id": d_oid, "is_deleted": False})
+        if not dashboard:
+            raise ValueError("Dashboard not found")
+
+        before_state = {"is_public": True, "public_token": dashboard.get("public_token")}
+        
+        mongo.db.dashboards.update_one(
+            {"_id": d_oid},
+            {
+                "$set": {
+                    "is_public": False,
+                    "public_token": None,
+                    "updated_at": datetime.datetime.utcnow().isoformat(),
+                }
+            },
+        )
+        
+        # Log audit event
+        try:
+            audit_service.log_action(
+                entity_type="dashboard",
+                entity_id=d_oid,
+                action="dashboard_sharing_revoked",
+                actor_id=ObjectId(author_id) if author_id and ObjectId.is_valid(author_id) else dashboard.get("created_by"),
+                actor_role="user",
+                before=before_state,
+                after={"is_public": False, "public_token": None}
+            )
+        except Exception as e:
+            logger.error(f"Failed to log public sharing revocation audit event: {e}")
+
+    def get_public_dashboard(self, token: str) -> Optional[Dict[str, Any]]:
+        """Get public dashboard by token."""
+        dashboard = mongo.db.dashboards.find_one({
+            "public_token": token,
+            "is_public": True,
+            "is_deleted": False
+        })
+        return dashboard
+
+    def list_snapshots(self, dashboard_id: str, page: int = 1, per_page: int = 20) -> tuple[List[Dict[str, Any]], Dict[str, Any]]:
+        """List dashboard snapshots."""
+        d_oid = ObjectId(dashboard_id) if ObjectId.is_valid(dashboard_id) else dashboard_id
+        
+        query = {"dashboard_id": d_oid, "is_deleted": False}
+        total = mongo.db.dashboard_snapshots.count_documents(query)
+
+        snapshots_cursor = mongo.db.dashboard_snapshots.find(query, {"data.widget_data": 0}).sort(
+            "created_at", -1
+        ).skip((page - 1) * per_page).limit(per_page)
+
+        snapshots = []
+        for snap in snapshots_cursor:
+            creator_id = snap.get("created_by")
+            if creator_id:
+                user = mongo.db.users.find_one({"_id": ObjectId(creator_id) if ObjectId.is_valid(creator_id) else creator_id})
+                if user:
+                    snap["created_by_user"] = {
+                        "_id": str(user["_id"]),
+                        "full_name": user.get("full_name") or user.get("name") or "Unknown",
+                    }
+                else:
+                    snap["created_by_user"] = {"_id": str(creator_id), "full_name": "Unknown"}
+            snapshots.append(snap)
+
+        total_pages = (total + per_page - 1) // per_page if total > 0 else 0
+        return snapshots, {
+            "total": total,
+            "page": page,
+            "per_page": per_page,
+            "total_pages": total_pages,
+        }
+
+    def get_snapshot(self, dashboard_id: str, snapshot_id: str) -> Optional[Dict[str, Any]]:
+        """Get a specific dashboard snapshot."""
+        snap_oid = ObjectId(snapshot_id) if ObjectId.is_valid(snapshot_id) else snapshot_id
+        d_oid = ObjectId(dashboard_id) if ObjectId.is_valid(dashboard_id) else dashboard_id
+        
+        snapshot = mongo.db.dashboard_snapshots.find_one({
+            "_id": snap_oid,
+            "dashboard_id": d_oid,
+            "is_deleted": False
+        })
+        return snapshot
+
+    def delete_snapshot(self, dashboard_id: str, snapshot_id: str) -> None:
+        """Delete a dashboard snapshot."""
+        snap_oid = ObjectId(snapshot_id) if ObjectId.is_valid(snapshot_id) else snapshot_id
+        d_oid = ObjectId(dashboard_id) if ObjectId.is_valid(dashboard_id) else dashboard_id
+        
+        snapshot = mongo.db.dashboard_snapshots.find_one({
+            "_id": snap_oid,
+            "dashboard_id": d_oid,
+            "is_deleted": False
+        })
+        if not snapshot:
+            raise ValueError("Snapshot not found")
+
+        mongo.db.dashboard_snapshots.update_one(
+            {"_id": snap_oid},
+            {"$set": {"is_deleted": True, "deleted_at": datetime.datetime.utcnow().isoformat()}},
+        )
+
 
 dashboard_service = DashboardService()

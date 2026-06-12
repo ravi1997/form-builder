@@ -166,7 +166,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                                   Icons.settings_suggest_outlined,
                                 ),
                                 color: activeTheme.glowColor,
-                                onPressed: () {},
+                                onPressed: () => context.go('/admin/compliance'),
                               ),
                               const SizedBox(width: AppSpacing.sm),
                               ElevatedButton.icon(

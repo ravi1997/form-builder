@@ -96,7 +96,11 @@ class ElementsPanel extends ConsumerWidget {
                     const SizedBox(height: AppSpacing.xs),
                 itemBuilder: (context, index) {
                   final el = elementTypes[index];
-                  return Material(
+                  final dragData = {
+                    'source': 'library',
+                    'type': el['type'] as String,
+                  };
+                  Widget cardContent = Material(
                     color: AppColors.surfaceCardAlt,
                     borderRadius: BorderRadius.circular(AppRadius.md),
                     child: InkWell(
@@ -138,6 +142,34 @@ class ElementsPanel extends ConsumerWidget {
                         ),
                       ),
                     ),
+                  );
+
+                  return Draggable<Map<String, dynamic>>(
+                    data: dragData,
+                    feedback: Material(
+                      elevation: 4,
+                      borderRadius: BorderRadius.circular(AppRadius.md),
+                      color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.9),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(el['icon'] as IconData, color: Colors.white, size: 16),
+                            const SizedBox(width: 8),
+                            Text(
+                              el['label'] as String,
+                              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    childWhenDragging: Opacity(
+                      opacity: 0.4,
+                      child: cardContent,
+                    ),
+                    child: cardContent,
                   );
                 },
               ),

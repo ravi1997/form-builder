@@ -6,6 +6,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/design_system.dart';
 import '../../../../core/theme/tokens.dart';
 import '../../../../core/widgets/responsive.dart';
+import '../../providers/form_builder_provider.dart';
 import '../widgets/canvas.dart';
 import '../widgets/elements_panel.dart';
 import '../widgets/properties_panel.dart';
@@ -19,6 +20,29 @@ class FormBuilderPage extends ConsumerStatefulWidget {
 
 class _FormBuilderPageState extends ConsumerState<FormBuilderPage> {
   String _activeSubSectionId = 'subsec_1';
+  bool _showPropertiesPanel = true;
+  ProviderSubscription<FormBuilderState>? _selectionSubscription;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectionSubscription = ref.listenManual<FormBuilderState>(
+      formBuilderProvider,
+      (previous, next) {
+      if (next.selectedElementId != null && !_showPropertiesPanel) {
+        setState(() {
+          _showPropertiesPanel = true;
+        });
+      }
+      },
+    );
+  }
+
+  @override
+  void dispose() {
+    _selectionSubscription?.close();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -131,7 +155,18 @@ class _FormBuilderPageState extends ConsumerState<FormBuilderPage> {
           ),
         ),
         SizedBox(height: gap),
-        SizedBox(height: 420, child: const PropertiesPanel()),
+        _showPropertiesPanel
+            ? SizedBox(
+                height: 420,
+                child: PropertiesPanel(
+                  onClosePanel: () {
+                    setState(() {
+                      _showPropertiesPanel = false;
+                    });
+                  },
+                ),
+              )
+            : const SizedBox.shrink(),
       ],
     );
   }
@@ -173,7 +208,18 @@ class _FormBuilderPageState extends ConsumerState<FormBuilderPage> {
                         ),
                       ),
                       SizedBox(height: gap),
-                      const SizedBox(height: 360, child: PropertiesPanel()),
+                      _showPropertiesPanel
+                          ? SizedBox(
+                              height: 360,
+                              child: PropertiesPanel(
+                                onClosePanel: () {
+                                  setState(() {
+                                    _showPropertiesPanel = false;
+                                  });
+                                },
+                              ),
+                            )
+                          : const SizedBox.shrink(),
                     ],
                   ),
                 ),
@@ -219,10 +265,18 @@ class _FormBuilderPageState extends ConsumerState<FormBuilderPage> {
                   ),
                 ),
                 SizedBox(width: gap),
-                SizedBox(
-                  width: propertiesWidth,
-                  child: const PropertiesPanel(),
-                ),
+                _showPropertiesPanel
+                    ? SizedBox(
+                        width: propertiesWidth,
+                        child: PropertiesPanel(
+                          onClosePanel: () {
+                            setState(() {
+                              _showPropertiesPanel = false;
+                            });
+                          },
+                        ),
+                      )
+                    : const SizedBox.shrink(),
               ],
             ),
           ),

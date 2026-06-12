@@ -315,14 +315,14 @@ class _LoginPageState extends ConsumerState<LoginPage> {
 
   double _cardHeight(AppResponsiveInfo responsive) {
     if (responsive.isMobile) {
-      return 540;
+      return 580;
     }
     if (responsive.isTablet) {
-      return 520;
+      return 580;
     }
     if (responsive.isLaptop) {
-      return 500;
+      return 580;
     }
-    return 520;
+    return 580;
   }
 }

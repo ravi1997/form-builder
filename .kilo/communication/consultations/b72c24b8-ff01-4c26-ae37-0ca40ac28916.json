@@ -1,0 +1,16 @@
+{
+  "id": "b72c24b8-ff01-4c26-ae37-0ca40ac28916",
+  "from_agent": "agent-1",
+  "to_agents": [
+    "agent-2",
+    "agent-3"
+  ],
+  "question": "What's the best approach for handling authentication?",
+  "context": {},
+  "expertise_required": [
+    "security",
+    "backend"
+  ],
+  "deadline": 1781247786.340825,
+  "responses": []
+}

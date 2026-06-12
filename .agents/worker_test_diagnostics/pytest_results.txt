@@ -1,0 +1,304 @@
+============================= test session starts ==============================
+platform linux -- Python 3.12.3, pytest-9.0.3, pluggy-1.6.0 -- /home/ravi/workspace/form-builder/.venv/bin/python3
+cachedir: .pytest_cache
+rootdir: /home/ravi/workspace/form-builder/backend
+plugins: flask-1.3.0, anyio-4.13.0
+collecting ... collected 46 items
+
+tests/test_analysis.py::test_validate_and_sort_dag_valid PASSED          [  2%]
+tests/test_analysis.py::test_validate_and_sort_dag_invalid_cycle PASSED  [  4%]
+tests/test_analysis.py::test_evaluate_filter PASSED                      [  6%]
+tests/test_analysis.py::test_evaluate_aggregation PASSED                 [  8%]
+tests/test_analysis.py::test_evaluate_projection PASSED                  [ 10%]
+tests/test_analysis.py::test_evaluate_formula PASSED                     [ 13%]
+tests/test_analysis.py::test_run_analysis_graph_task_success PASSED      [ 15%]
+tests/test_analysis.py::test_run_analysis_graph_task_block_propagation PASSED [ 17%]
+tests/test_analysis.py::test_search_service_indexing_and_searching PASSED [ 19%]
+tests/test_auth.py::test_register_login_refresh_flow PASSED              [ 21%]
+tests/test_auth.py::test_access_token_contains_org_claims PASSED         [ 23%]
+tests/test_auth.py::test_notifications_route_requires_bearer_token PASSED [ 26%]
+tests/test_auth.py::test_password_policy_rejects_weak_password PASSED    [ 28%]
+tests/test_auth.py::test_logout_revokes_refresh_token PASSED             [ 30%]
+tests/test_auth.py::test_sessions_listing PASSED                         [ 32%]
+tests/test_auth.py::test_accept_invite_creates_active_user_and_membership PASSED [ 34%]
+tests/test_auth.py::test_group_resolution_and_permission_helpers PASSED  [ 36%]
+tests/test_auth.py::test_advanced_dynamic_rules PASSED                   [ 39%]
+tests/test_compliance.py::test_compliance_service_is_held PASSED         [ 41%]
+tests/test_compliance.py::test_delete_endpoints_compliance_block PASSED  [ 43%]
+tests/test_dashboard.py::test_dashboard_crud PASSED                      [ 45%]
+tests/test_dashboard.py::test_canvas_save_and_resolution PASSED          [ 47%]
+tests/test_dashboard.py::test_snapshots PASSED                           [ 50%]
+tests/test_dashboard.py::test_public_sharing PASSED                      [ 52%]
+tests/test_factory.py::test_health_check PASSED                          [ 54%]
+tests/test_factory.py::test_indexes_initialized PASSED                   [ 56%]
+tests/test_forms.py::test_create_form_and_commit PASSED                  [ 58%]
+tests/test_forms.py::test_branch_operations PASSED                       [ 60%]
+tests/test_forms.py::test_publish_branch PASSED                          [ 63%]
+tests/test_forms.py::test_three_way_merge_auto PASSED                    [ 65%]
+tests/test_forms.py::test_three_way_merge_conflict PASSED                [ 67%]
+tests/test_forms.py::test_style_presets PASSED                           [ 69%]
+tests/test_forms.py::test_custom_css_validation PASSED                   [ 71%]
+tests/test_forms.py::test_notifications_settings_validation PASSED       [ 73%]
+tests/test_forms.py::test_analytics_settings_validation PASSED           [ 76%]
+tests/test_identity.py::test_api_key_create_and_verify PASSED            [ 78%]
+tests/test_identity.py::test_oauth_client_credentials_token PASSED       [ 80%]
+tests/test_identity.py::test_api_key_rotate_and_revoke PASSED            [ 82%]
+tests/test_identity.py::test_api_key_rate_limit_enforced PASSED          [ 84%]
+tests/test_identity.py::test_oauth_authorize_and_token_exchange PASSED   [ 86%]
+tests/test_identity.py::test_org_membership_management_route PASSED      [ 89%]
+tests/test_identity.py::test_external_collaborator_invitation_and_access PASSED [ 91%]
+tests/test_identity.py::test_external_collaborator_invite_rejected_when_disabled PASSED [ 93%]
+tests/test_notifications.py::test_notifications_registration_and_archive_endpoints PASSED [ 95%]
+tests/test_quota.py::test_form_creation_blocked_when_quota_exceeded PASSED [ 97%]
+tests/test_sync.py::test_sync_delta_returns_updated_forms_and_tombstones PASSED [100%]
+
+=============================== warnings summary ===============================
+tests/test_analysis.py::test_run_analysis_graph_task_success
+  /home/ravi/workspace/form-builder/backend/tests/test_analysis.py:151: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    "created_at": datetime.datetime.utcnow().isoformat(),
+
+tests/test_analysis.py::test_run_analysis_graph_task_success
+  /home/ravi/workspace/form-builder/backend/tests/test_analysis.py:152: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    "updated_at": datetime.datetime.utcnow().isoformat()
+
+tests/test_analysis.py: 10 warnings
+  /home/ravi/workspace/form-builder/backend/app/workers/analysis_tasks.py:23: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    return datetime.datetime.utcnow().isoformat()
+
+tests/test_analysis.py::test_search_service_indexing_and_searching
+  /home/ravi/workspace/form-builder/backend/app/services/search_service.py:56: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    submitted_at = datetime.datetime.utcnow().isoformat()
+
+tests/test_auth.py: 47 warnings
+tests/test_identity.py: 63 warnings
+tests/test_notifications.py: 7 warnings
+  /home/ravi/workspace/form-builder/backend/app/services/auth_service.py:54: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    return datetime.datetime.utcnow()
+
+tests/test_auth.py: 5 warnings
+tests/test_identity.py: 5 warnings
+tests/test_notifications.py: 1 warning
+  /home/ravi/workspace/form-builder/.venv/lib/python3.12/site-packages/jwt/api_jwt.py:147: InsecureKeyLengthWarning: The HMAC key is 15 bytes long, which is below the minimum recommended length of 32 bytes for SHA256. See RFC 7518 Section 3.2.
+    return self._jws.encode(
+
+tests/test_auth.py::test_register_login_refresh_flow
+tests/test_auth.py::test_access_token_contains_org_claims
+tests/test_auth.py::test_logout_revokes_refresh_token
+tests/test_auth.py::test_sessions_listing
+  /home/ravi/workspace/form-builder/backend/app/routes/auth.py:113: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    "expires_at": datetime.datetime.utcnow() + datetime.timedelta(days=1),
+
+tests/test_auth.py::test_register_login_refresh_flow
+tests/test_auth.py::test_access_token_contains_org_claims
+tests/test_auth.py::test_logout_revokes_refresh_token
+tests/test_auth.py::test_sessions_listing
+  /home/ravi/workspace/form-builder/backend/app/routes/auth.py:114: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    "created_at": datetime.datetime.utcnow(),
+
+tests/test_auth.py::test_register_login_refresh_flow
+tests/test_auth.py::test_access_token_contains_org_claims
+tests/test_auth.py::test_logout_revokes_refresh_token
+tests/test_auth.py::test_sessions_listing
+  /home/ravi/workspace/form-builder/backend/app/routes/auth.py:115: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    "updated_at": datetime.datetime.utcnow(),
+
+tests/test_auth.py: 53 warnings
+tests/test_identity.py: 33 warnings
+tests/test_notifications.py: 3 warnings
+  /home/ravi/workspace/form-builder/.venv/lib/python3.12/site-packages/mongomock/helpers.py:73: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    return datetime.utcnow()
+
+tests/test_auth.py::test_register_login_refresh_flow
+tests/test_auth.py::test_access_token_contains_org_claims
+tests/test_auth.py::test_logout_revokes_refresh_token
+tests/test_auth.py::test_sessions_listing
+tests/test_identity.py::test_oauth_authorize_and_token_exchange
+tests/test_identity.py::test_org_membership_management_route
+tests/test_identity.py::test_external_collaborator_invitation_and_access
+tests/test_identity.py::test_external_collaborator_invite_rejected_when_disabled
+tests/test_notifications.py::test_notifications_registration_and_archive_endpoints
+  /home/ravi/workspace/form-builder/.venv/lib/python3.12/site-packages/jwt/api_jwt.py:368: InsecureKeyLengthWarning: The HMAC key is 15 bytes long, which is below the minimum recommended length of 32 bytes for SHA256. See RFC 7518 Section 3.2.
+    decoded = self.decode_complete(
+
+tests/test_auth.py::test_accept_invite_creates_active_user_and_membership
+  /home/ravi/workspace/form-builder/backend/tests/test_auth.py:120: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    "expires_at": __import__("datetime").datetime.utcnow() + __import__("datetime").timedelta(days=7),
+
+tests/test_auth.py::test_accept_invite_creates_active_user_and_membership
+  /home/ravi/workspace/form-builder/backend/tests/test_auth.py:121: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    "created_at": __import__("datetime").datetime.utcnow(),
+
+tests/test_auth.py::test_accept_invite_creates_active_user_and_membership
+  /home/ravi/workspace/form-builder/backend/tests/test_auth.py:122: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    "updated_at": __import__("datetime").datetime.utcnow(),
+
+tests/test_auth.py::test_accept_invite_creates_active_user_and_membership
+tests/test_identity.py::test_external_collaborator_invitation_and_access
+  /home/ravi/workspace/form-builder/backend/app/routes/auth.py:247: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    if invitation.get("expires_at") and invitation["expires_at"] < datetime.datetime.utcnow():
+
+tests/test_compliance.py::test_compliance_service_is_held
+  /home/ravi/workspace/form-builder/backend/tests/test_compliance.py:39: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    "created_at": datetime.datetime.utcnow().isoformat(),
+
+tests/test_compliance.py::test_delete_endpoints_compliance_block
+  /home/ravi/workspace/form-builder/backend/tests/test_compliance.py:81: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    "created_at": datetime.datetime.utcnow().isoformat(),
+
+tests/test_compliance.py::test_delete_endpoints_compliance_block
+  /home/ravi/workspace/form-builder/backend/app/routes/forms.py:718: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    mongo.db.forms.update_one({"_id": fid}, {"$set": {"is_deleted": True, "deleted_at": datetime.datetime.utcnow().isoformat()}})
+
+tests/test_dashboard.py::test_dashboard_crud
+tests/test_dashboard.py::test_canvas_save_and_resolution
+tests/test_dashboard.py::test_snapshots
+tests/test_dashboard.py::test_public_sharing
+  /home/ravi/workspace/form-builder/backend/app/services/dashboard_service.py:197: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    "created_at": datetime.datetime.utcnow().isoformat(),
+
+tests/test_dashboard.py::test_dashboard_crud
+tests/test_dashboard.py::test_canvas_save_and_resolution
+tests/test_dashboard.py::test_snapshots
+tests/test_dashboard.py::test_public_sharing
+  /home/ravi/workspace/form-builder/backend/app/services/dashboard_service.py:198: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    "updated_at": datetime.datetime.utcnow().isoformat(),
+
+tests/test_dashboard.py::test_dashboard_crud
+  /home/ravi/workspace/form-builder/backend/app/services/dashboard_service.py:358: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    update_fields["updated_at"] = datetime.datetime.utcnow().isoformat()
+
+tests/test_dashboard.py::test_dashboard_crud
+  /home/ravi/workspace/form-builder/backend/app/services/dashboard_service.py:369: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    "deleted_at": datetime.datetime.utcnow().isoformat(),
+
+tests/test_dashboard.py::test_dashboard_crud
+  /home/ravi/workspace/form-builder/backend/app/services/dashboard_service.py:370: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    "updated_at": datetime.datetime.utcnow().isoformat()
+
+tests/test_dashboard.py::test_canvas_save_and_resolution
+  /home/ravi/workspace/form-builder/backend/tests/test_dashboard.py:134: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    "created_at": datetime.datetime.utcnow().isoformat(),
+
+tests/test_dashboard.py::test_canvas_save_and_resolution
+  /home/ravi/workspace/form-builder/backend/tests/test_dashboard.py:135: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    "updated_at": datetime.datetime.utcnow().isoformat()
+
+tests/test_dashboard.py::test_canvas_save_and_resolution
+  /home/ravi/workspace/form-builder/backend/tests/test_dashboard.py:145: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    "updated_at": datetime.datetime.utcnow().isoformat()
+
+tests/test_dashboard.py::test_canvas_save_and_resolution
+  /home/ravi/workspace/form-builder/backend/tests/test_dashboard.py:161: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    "updated_at": datetime.datetime.utcnow().isoformat()
+
+tests/test_dashboard.py::test_canvas_save_and_resolution
+  /home/ravi/workspace/form-builder/backend/app/services/dashboard_service.py:492: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    "updated_at": datetime.datetime.utcnow().isoformat()
+
+tests/test_dashboard.py::test_canvas_save_and_resolution
+  /home/ravi/workspace/form-builder/backend/app/services/dashboard_service.py:504: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    "timestamp": datetime.datetime.utcnow().isoformat()
+
+tests/test_dashboard.py::test_canvas_save_and_resolution
+  /home/ravi/workspace/form-builder/backend/app/services/dashboard_service.py:669: DeprecationWarning: Call to deprecated setex. (Use 'set' instead.) -- Deprecated since version 2.6.12.
+    redis_client.setex(cache_key, 300, json.dumps(result_payload))
+
+tests/test_dashboard.py::test_snapshots
+  /home/ravi/workspace/form-builder/backend/app/services/dashboard_service.py:697: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    "snapshot_at": datetime.datetime.utcnow().isoformat()
+
+tests/test_dashboard.py::test_snapshots
+  /home/ravi/workspace/form-builder/backend/app/services/dashboard_service.py:699: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    "created_at": datetime.datetime.utcnow().isoformat(),
+
+tests/test_dashboard.py::test_snapshots
+  /home/ravi/workspace/form-builder/backend/app/routes/dashboard.py:608: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    {"$set": {"is_deleted": True, "deleted_at": datetime.datetime.utcnow().isoformat()}},
+
+tests/test_dashboard.py::test_public_sharing
+  /home/ravi/workspace/form-builder/backend/app/routes/dashboard.py:376: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    "updated_at": datetime.datetime.utcnow().isoformat(),
+
+tests/test_dashboard.py::test_public_sharing
+  /home/ravi/workspace/form-builder/backend/app/routes/dashboard.py:387: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    "timestamp": datetime.datetime.utcnow().isoformat(),
+
+tests/test_dashboard.py::test_public_sharing
+  /home/ravi/workspace/form-builder/backend/app/routes/dashboard.py:509: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    "server_time": datetime.datetime.utcnow().isoformat(),
+
+tests/test_dashboard.py::test_public_sharing
+  /home/ravi/workspace/form-builder/backend/app/routes/dashboard.py:416: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    "updated_at": datetime.datetime.utcnow().isoformat(),
+
+tests/test_forms.py::test_create_form_and_commit
+tests/test_forms.py::test_branch_operations
+tests/test_forms.py::test_publish_branch
+tests/test_forms.py::test_three_way_merge_auto
+tests/test_forms.py::test_three_way_merge_conflict
+tests/test_forms.py::test_custom_css_validation
+tests/test_forms.py::test_notifications_settings_validation
+tests/test_forms.py::test_analytics_settings_validation
+  /home/ravi/workspace/form-builder/backend/app/routes/forms.py:274: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    now = datetime.datetime.utcnow()
+
+tests/test_forms.py: 19 warnings
+  /home/ravi/workspace/form-builder/backend/app/engines/form_engine.py:13: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    timestamp = datetime.datetime.utcnow().isoformat()
+
+tests/test_forms.py::test_create_form_and_commit
+tests/test_forms.py::test_branch_operations
+tests/test_forms.py::test_publish_branch
+tests/test_forms.py::test_three_way_merge_auto
+tests/test_forms.py::test_three_way_merge_conflict
+tests/test_forms.py::test_custom_css_validation
+tests/test_forms.py::test_notifications_settings_validation
+tests/test_forms.py::test_analytics_settings_validation
+  /home/ravi/workspace/form-builder/backend/app/routes/forms.py:348: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    {"$set": {"branches.main": commit["commit_id"], "updated_at": datetime.datetime.utcnow()}}
+
+tests/test_forms.py::test_branch_operations
+tests/test_forms.py::test_publish_branch
+tests/test_forms.py::test_three_way_merge_auto
+tests/test_forms.py::test_three_way_merge_conflict
+  /home/ravi/workspace/form-builder/backend/app/engines/form_engine.py:83: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    {"$set": {f"branches.{name}": from_commit_id, "updated_at": datetime.datetime.utcnow().isoformat()}}
+
+tests/test_forms.py::test_branch_operations
+  /home/ravi/workspace/form-builder/backend/app/routes/forms.py:589: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    {"$unset": {f"branches.{branch_name}": ""}, "$set": {"updated_at": datetime.datetime.utcnow().isoformat()}}
+
+tests/test_forms.py::test_publish_branch
+  /home/ravi/workspace/form-builder/backend/app/routes/forms.py:629: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    {"$set": {"production_branch": branch, "updated_at": datetime.datetime.utcnow().isoformat()}}
+
+tests/test_forms.py::test_three_way_merge_conflict
+  /home/ravi/workspace/form-builder/backend/app/engines/form_engine.py:347: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    "created_at": datetime.datetime.utcnow().isoformat(),
+
+tests/test_notifications.py::test_notifications_registration_and_archive_endpoints
+  /home/ravi/workspace/form-builder/backend/tests/test_notifications.py:38: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    "created_at": datetime.datetime.utcnow(),
+
+tests/test_notifications.py::test_notifications_registration_and_archive_endpoints
+  /home/ravi/workspace/form-builder/backend/tests/test_notifications.py:39: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    "last_attempt_at": datetime.datetime.utcnow(),
+
+tests/test_notifications.py::test_notifications_registration_and_archive_endpoints
+  /home/ravi/workspace/form-builder/backend/app/services/notification_service.py:15: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    return datetime.datetime.utcnow()
+
+tests/test_quota.py::test_form_creation_blocked_when_quota_exceeded
+  /home/ravi/workspace/form-builder/backend/tests/test_quota.py:16: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    "last_calculated_at": datetime.datetime.utcnow(),
+
+tests/test_sync.py::test_sync_delta_returns_updated_forms_and_tombstones
+  /home/ravi/workspace/form-builder/backend/tests/test_sync.py:7: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    now = datetime.datetime.utcnow()
+
+tests/test_sync.py::test_sync_delta_returns_updated_forms_and_tombstones
+  /home/ravi/workspace/form-builder/backend/app/services/sync_service.py:70: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    server_synced_at = datetime.datetime.utcnow().isoformat() + "Z"
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================= 46 passed, 332 warnings in 8.07s =======================

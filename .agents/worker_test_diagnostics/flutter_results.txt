@@ -1,0 +1,18 @@
+00:00 +0: loading /home/ravi/workspace/form-builder/frontend/test/advanced_logic_validation_test.dart
+00:00 +0: /home/ravi/workspace/form-builder/frontend/test/advanced_logic_validation_test.dart: Advanced Logic and Validation Graph & Warnings Test
+00:00 +1: /home/ravi/workspace/form-builder/frontend/test/advanced_logic_validation_test.dart: Advanced Logic and Validation Graph & Warnings Test
+00:00 +2: /home/ravi/workspace/form-builder/frontend/test/advanced_logic_validation_test.dart: Advanced Logic and Validation Graph & Warnings Test
+00:00 +3: /home/ravi/workspace/form-builder/frontend/test/advanced_logic_validation_test.dart: Advanced Logic and Validation Graph & Warnings Test
+00:01 +4: /home/ravi/workspace/form-builder/frontend/test/advanced_logic_validation_test.dart: Advanced Logic and Validation Graph & Warnings Test
+00:01 +5: /home/ravi/workspace/form-builder/frontend/test/advanced_logic_validation_test.dart: Advanced Logic and Validation Graph & Warnings Test
+00:01 +6: /home/ravi/workspace/form-builder/frontend/test/advanced_logic_validation_test.dart: Advanced Logic and Validation Graph & Warnings Test
+00:01 +7: /home/ravi/workspace/form-builder/frontend/test/advanced_logic_validation_test.dart: Advanced Logic and Validation Graph & Warnings Test
+00:01 +8: /home/ravi/workspace/form-builder/frontend/test/advanced_logic_validation_test.dart: Advanced Logic and Validation Graph & Warnings Test
+00:01 +9: /home/ravi/workspace/form-builder/frontend/test/properties_panel_tuning_test.dart: Inline Popover and Help Tooltip System Tests
+00:01 +10: /home/ravi/workspace/form-builder/frontend/test/form_notifications_test.dart: Form Notifications Tab and Fields State Sync Test
+00:02 +11: /home/ravi/workspace/form-builder/frontend/test/form_notifications_test.dart: Form Notifications Tab and Fields State Sync Test
+00:02 +12: /home/ravi/workspace/form-builder/frontend/test/form_notifications_test.dart: Form Notifications Tab and Fields State Sync Test
+00:02 +13: /home/ravi/workspace/form-builder/frontend/test/form_analytics_test.dart: Form Analytics Tab and Fields State Sync Test
+00:02 +14: /home/ravi/workspace/form-builder/frontend/test/form_canvas_play_test.dart: BuilderCanvas Play Mode, validation, branching and drag-drop testing
+00:03 +15: /home/ravi/workspace/form-builder/frontend/test/form_canvas_play_test.dart: Drag and drop ghost indicators and targets validation
+00:03 +16: All tests passed!

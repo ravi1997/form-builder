@@ -1,0 +1,35 @@
+# Elasticsearch configuration
+cluster.name: formbuilder
+node.name: node-1
+network.host: 0.0.0.0
+http.port: 9200
+discovery.type: single-node
+
+# Security
+xpack.security.enabled: false
+xpack.security.http.ssl.enabled: false
+xpack.security.transport.ssl.enabled: false
+
+# Memory
+bootstrap.memory_lock: false
+
+# Paths
+path.data: /usr/share/elasticsearch/data
+path.logs: /usr/share/elasticsearch/logs
+
+# Index settings
+index.number_of_shards: 1
+index.number_of_replicas: 0
+
+# Performance
+indices.memory.index_buffer_size: 10%
+indices.memory.min_index_buffer_size: 48mb
+
+# Monitoring
+xpack.monitoring.collection.enabled: true
+xpack.monitoring.elasticsearch.collection.enabled: true
+
+# Logging
+logger.level: INFO
+logger.org.elasticsearch.discovery: WARN
+logger.org.elasticsearch.cluster: WARN

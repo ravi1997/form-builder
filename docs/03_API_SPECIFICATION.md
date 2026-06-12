@@ -232,6 +232,47 @@ This document defines the REST API endpoints exposed by the backend services of 
 }
 ```
 
+### `GET /api/internal/v1/forms/<form_id>/history`
+* **Description**: Search prior submitted responses for a keyed value entered in a searchable question. This is the "History" lookup action, not an audit timeline.
+* **Auth Requirement**: JWT Access Token
+* **Query Parameters**:
+  - `question_id`: ObjectId or question UUID (required)
+  - `primary_value`: string (required)
+  - `match_mode`: `exact` or `normalized` (optional, defaults to the form/question setting)
+  - `limit`: integer (optional, defaults to the form-level max)
+  - `cursor`: string (optional, for pagination)
+  - `include_archived`: boolean (optional, admin-only)
+* **Response (200 OK)**:
+```json
+{
+  "status": "success",
+  "data": {
+    "lookup": {
+      "form_id": "603d4a259c6b8c2c5c994550",
+      "question_id": "q_patient_id",
+      "primary_value": "PAT-10293",
+      "match_mode": "normalized"
+    },
+    "count": 3,
+    "next_cursor": null,
+    "results": [
+      {
+        "response_id": "603d4a259c6b8c2c5c99450a",
+        "submission_number": 435,
+        "submitted_at": "2026-06-07T10:15:00Z",
+        "status": "submitted",
+        "summary": {
+          "q_patient_name": "Jane Doe",
+          "q_visit_date": "2026-06-07",
+          "q_department": "Cardiology"
+        },
+        "can_open": true
+      }
+    ]
+  }
+}
+```
+
 ---
 
 ## 5. Analysis Route Group (`/api/internal/v1/analysis/*`)

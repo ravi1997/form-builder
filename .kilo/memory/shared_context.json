@@ -1,0 +1,69 @@
+{
+  "workspace_path": "/home/ravi/workspace/form-builder",
+  "memory_path": "/home/ravi/workspace/form-builder/.kilo/memory",
+  "communication_path": "/home/ravi/workspace/form-builder/.kilo/communication",
+  "start_time": "2026-06-12T14:46:36.425252",
+  "status": "executing",
+  "completed_components": [
+    "data-models-specialist",
+    "plugin-system-specialist",
+    "form-versioning-specialist"
+  ],
+  "active_components": [],
+  "blocked_components": [],
+  "dependencies": {
+    "data-models": [],
+    "form-versioning": [
+      "data-models"
+    ],
+    "plugin-system": [
+      "data-models"
+    ],
+    "analysis-engine": [
+      "data-models"
+    ],
+    "dashboard-canvas": [
+      "data-models",
+      "analysis-engine"
+    ],
+    "auth-authorization": [
+      "data-models"
+    ],
+    "api-compliance": [
+      "data-models",
+      "form-versioning",
+      "plugin-system",
+      "analysis-engine",
+      "dashboard-canvas",
+      "auth-authorization"
+    ],
+    "service-layer": [
+      "data-models",
+      "form-versioning",
+      "plugin-system",
+      "analysis-engine",
+      "dashboard-canvas",
+      "auth-authorization"
+    ],
+    "worker-tasks": [
+      "data-models",
+      "form-versioning",
+      "plugin-system",
+      "analysis-engine",
+      "dashboard-canvas",
+      "auth-authorization",
+      "service-layer"
+    ],
+    "configuration-infrastructure": [
+      "data-models",
+      "form-versioning",
+      "plugin-system",
+      "analysis-engine",
+      "dashboard-canvas",
+      "auth-authorization",
+      "service-layer",
+      "worker-tasks",
+      "api-compliance"
+    ]
+  }
+}

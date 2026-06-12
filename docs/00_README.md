@@ -411,6 +411,8 @@ All documentation lives in the `docs/` directory. Below is a complete map of all
 | `phases/phase_04_dashboard_builder.md` | Phase 4 implementation plan: Free-form canvas, all widget types, data binding, auto-refresh, public dashboard sharing. |
 | `phases/phase_05_advanced_platform.md` | Phase 5 implementation plan: Compliance registry, full notification engine, webhook system, public REST API + OAuth + API keys + rate limiting, storage quota, update mechanism, admin panel, audit log archiving. |
 | `phases/phase_06_llm_integration.md` | Phase 6 implementation plan: LLM as analysis node, LLM form builder assistant, natural language dashboard queries. |
+| `17_HISTORY_LOOKUP.md` | Keyed response lookup ("History"): form/question configuration, lookup behavior, privacy rules, API contract, and patient ID example. |
+| `18_QUICK_RESPONSES.md` | Quick Responses / response presets: reusable template management, selection rules, permissions, and conflict handling. |
 
 > **How to use this documentation**: Start with `CONTEXT.md` to understand all architectural decisions. Then read `01_ARCHITECTURE.md` for system design. Then read the relevant `phases/` file for the feature you are implementing.
 

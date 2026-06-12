@@ -1,0 +1,28 @@
+{
+  "created_at": "2026-06-12T12:05:34Z",
+  "version": "1.0.0",
+  "description": "Shared memory for form-builder project agents",
+  "repositories": [
+    {
+      "name": "docs",
+      "path": "/home/ravi/workspace/form-builder/docs",
+      "description": "Project documentation and architecture"
+    },
+    {
+      "name": "backend", 
+      "path": "/home/ravi/workspace/form-builder/backend",
+      "description": "Flask backend application"
+    },
+    {
+      "name": "frontend",
+      "path": "/home/ravi/workspace/form-builder/frontend", 
+      "description": "Flutter frontend application"
+    }
+  ],
+  "shared_context": {
+    "project_name": "Form Builder Platform",
+    "architecture": "Three-tier architecture with docs, backend, and frontend",
+    "technologies": ["Flask", "Flutter", "MongoDB", "Redis", "Docker"],
+    "last_updated": "2026-06-12T12:05:34Z"
+  }
+}

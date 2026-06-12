@@ -1315,6 +1315,8 @@ For each `field_mapping` entry `{source_path, target_question_id}`:
 | `block_submission` | The fetch action is required. If offline, an error banner is shown: "Cannot submit — requires network for pre-fill". Submission is blocked until connectivity is restored and the fetch succeeds. |
 | `use_cache` | The platform uses the last successfully fetched values (cached in Drift). If no cache exists, falls back to `leave_blank`. |
 
+For keyed response lookup ("History"), see [17_HISTORY_LOOKUP.md](./17_HISTORY_LOOKUP.md).
+
 ---
 
 ## Repeatable Sections and Sub-Sections
@@ -1582,6 +1584,8 @@ A form template is a saved `form_commit.schema` that can be used as the starting
 4. Creates the first commit on the `main` branch with the template schema and `message: "Created from template: {template_name}"`.
 
 ---
+
+For reusable response presets used during form filling, see [18_QUICK_RESPONSES.md](./18_QUICK_RESPONSES.md).
 
 ## Cover Page and Thank You Page
 

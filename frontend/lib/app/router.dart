@@ -6,6 +6,7 @@ import '../features/auth/presentation/pages/password_reset_page.dart';
 import '../features/home/presentation/pages/home_page.dart';
 import '../features/form_builder/presentation/pages/form_builder_page.dart';
 import '../features/dashboard_builder/dashboard_builder_page.dart';
+import '../features/compliance/presentation/pages/compliance_page.dart';
 
 final GoRouter appRouter = GoRouter(
   initialLocation: '/login',
@@ -13,6 +14,10 @@ final GoRouter appRouter = GoRouter(
     GoRoute(
       path: '/',
       builder: (BuildContext context, GoRouterState state) => const HomePage(),
+    ),
+    GoRoute(
+      path: '/admin/compliance',
+      builder: (BuildContext context, GoRouterState state) => const CompliancePage(),
     ),
     GoRoute(
       path: '/login',

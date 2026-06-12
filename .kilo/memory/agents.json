@@ -1,0 +1,44 @@
+{
+  "agent-1": {
+    "id": "agent-1",
+    "name": "Code Reviewer",
+    "type": "primary",
+    "provider": "kilo",
+    "capabilities": [
+      "code_review",
+      "analysis"
+    ],
+    "status": "active",
+    "last_seen": "2026-06-12T12:23:02.674293",
+    "current_task": null,
+    "shared_memory_access": true
+  },
+  "agent-2": {
+    "id": "agent-2",
+    "name": "Frontend Specialist",
+    "type": "primary",
+    "provider": "kilo",
+    "capabilities": [
+      "frontend",
+      "ui"
+    ],
+    "status": "active",
+    "last_seen": "2026-06-12T12:23:02.674536",
+    "current_task": null,
+    "shared_memory_access": true
+  },
+  "agent-3": {
+    "id": "agent-3",
+    "name": "Backend Specialist",
+    "type": "external",
+    "provider": "codex",
+    "capabilities": [
+      "backend",
+      "api"
+    ],
+    "status": "active",
+    "last_seen": "2026-06-12T12:23:02.674709",
+    "current_task": null,
+    "shared_memory_access": true
+  }
+}

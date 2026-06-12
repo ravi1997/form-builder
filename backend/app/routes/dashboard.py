@@ -3,17 +3,21 @@ from bson import ObjectId
 import datetime
 import uuid
 import json
-import jwt
 
 from app.extensions import mongo
 from app.services.auth_service import decode_request_bearer_token
 from app.services.dashboard_service import dashboard_service, serialize_doc
+from app.models.dashboard import (
+    Dashboard, CanvasDataResponse, WidgetDataResponse, 
+    FilterOptionsResponse, PublicDashboardResponse
+)
 
 dashboard_bp = Blueprint("dashboard", __name__, url_prefix="/api/internal/v1/dashboards")
 public_dashboard_bp = Blueprint("public_dashboard", __name__, url_prefix="/api/v1/public/dashboards")
 
 
 def success_response(data=None, legacy=None, status_code=200):
+    """Create a success response."""
     payload = {"status": "success", "data": data if data is not None else {}}
     if isinstance(legacy, dict):
         payload.update(legacy)
@@ -21,6 +25,7 @@ def success_response(data=None, legacy=None, status_code=200):
 
 
 def error_response(code, message, status_code=400, details=None):
+    """Create an error response."""
     details = details or {}
     payload = {
         "status": "error",
@@ -37,6 +42,7 @@ def error_response(code, message, status_code=400, details=None):
 
 
 def _decode_access_token():
+    """Decode JWT access token from request."""
     try:
         _, decoded = decode_request_bearer_token(request.headers.get("Authorization", ""))
         if decoded.get("system_role") not in ("super_admin", "user"):
@@ -47,6 +53,7 @@ def _decode_access_token():
 
 
 def get_request_context():
+    """Get request context with user information."""
     decoded = _decode_access_token()
     if decoded:
         org_ids = []
@@ -74,6 +81,7 @@ def get_request_context():
 
 
 def require_request_context():
+    """Require authenticated request context."""
     context = get_request_context()
     if context and context.get("user_id"):
         return context
@@ -81,6 +89,7 @@ def require_request_context():
 
 
 def _dashboard_matches_org_access(dashboard, context):
+    """Check if user has access to dashboard."""
     if not context:
         return False
     if context.get("system_role") == "super_admin":
@@ -92,11 +101,13 @@ def _dashboard_matches_org_access(dashboard, context):
 
 
 def _dashboard_lookup(dashboard_id):
+    """Lookup dashboard by ID."""
     d_oid = ObjectId(dashboard_id) if ObjectId.is_valid(dashboard_id) else dashboard_id
     return d_oid, mongo.db.dashboards.find_one({"_id": d_oid, "is_deleted": False})
 
 
 def _public_dashboard_payload(dashboard, widget_data):
+    """Create public dashboard response (stripped of sensitive data)."""
     clean_canvas = strip_bindings_from_canvas(dashboard.get("canvas"))
     return {
         "dashboard": {
@@ -115,6 +126,7 @@ def _public_dashboard_payload(dashboard, widget_data):
 
 @dashboard_bp.route("", methods=["POST"])
 def create_dashboard():
+    """Create a new dashboard."""
     data = request.get_json() or {}
     context = require_request_context()
     if not context:
@@ -137,6 +149,7 @@ def create_dashboard():
 
 @dashboard_bp.route("", methods=["GET"])
 def list_dashboards():
+    """List dashboards for a project."""
     context = require_request_context()
     if not context:
         return error_response("UNAUTHORIZED", "Valid bearer token is required", 401)
@@ -165,29 +178,35 @@ def list_dashboards():
 
 
 @dashboard_bp.route("/<dashboard_id>", methods=["GET"])
-def get_dashboard(dashboard_id):
+def get_dashboard():
+    """Get dashboard details."""
     context = require_request_context()
     if not context:
         return error_response("UNAUTHORIZED", "Valid bearer token is required", 401)
 
+    dashboard_id = request.view_args["dashboard_id"]
     try:
         res = dashboard_service.get_dashboard(dashboard_id, context)
         if not res:
             return error_response("DASHBOARD_NOT_FOUND", "Dashboard not found", 404)
 
         serialized = serialize_doc(res)
-        legacy = {"dashboard": serialized, "linked_analyses": serialized.get("linked_analyses", [])}
-        return success_response(serialized, legacy, 200)
+        dashboard_doc = serialized.get("dashboard")
+        linked_analyses = serialized.get("linked_analyses", [])
+        legacy = {"dashboard": dashboard_doc, "linked_analyses": linked_analyses}
+        return success_response(dashboard_doc, legacy, 200)
     except Exception as e:
         return error_response("INTERNAL_ERROR", str(e), 500)
 
 
 @dashboard_bp.route("/<dashboard_id>", methods=["PATCH"])
-def update_dashboard(dashboard_id):
+def update_dashboard():
+    """Update dashboard metadata."""
     context = require_request_context()
     if not context:
         return error_response("UNAUTHORIZED", "Valid bearer token is required", 401)
 
+    dashboard_id = request.view_args["dashboard_id"]
     data = request.get_json() or {}
     try:
         res = dashboard_service.update_dashboard(dashboard_id, data, context)
@@ -195,7 +214,10 @@ def update_dashboard(dashboard_id):
             return error_response("DASHBOARD_NOT_FOUND", "Dashboard not found", 404)
 
         serialized = serialize_doc(res)
-        return success_response({"dashboard": serialized}, {"dashboard": serialized}, 200)
+        dashboard_doc = serialized.get("dashboard")
+        linked_analyses = serialized.get("linked_analyses", [])
+        legacy = {"dashboard": dashboard_doc, "linked_analyses": linked_analyses}
+        return success_response(dashboard_doc, legacy, 200)
     except ValueError as e:
         msg = str(e)
         if "conflict" in msg.lower():
@@ -206,11 +228,13 @@ def update_dashboard(dashboard_id):
 
 
 @dashboard_bp.route("/<dashboard_id>", methods=["DELETE"])
-def delete_dashboard(dashboard_id):
+def delete_dashboard():
+    """Delete a dashboard."""
     context = require_request_context()
     if not context:
         return error_response("UNAUTHORIZED", "Valid bearer token is required", 401)
 
+    dashboard_id = request.view_args["dashboard_id"]
     try:
         d_oid, exists = _dashboard_lookup(dashboard_id)
         if not exists:
@@ -226,11 +250,13 @@ def delete_dashboard(dashboard_id):
 
 
 @dashboard_bp.route("/<dashboard_id>/canvas", methods=["PUT"])
-def save_canvas(dashboard_id):
+def save_canvas():
+    """Save dashboard canvas."""
     context = require_request_context()
     if not context:
         return error_response("UNAUTHORIZED", "Valid bearer token is required", 401)
 
+    dashboard_id = request.view_args["dashboard_id"]
     data = request.get_json() or {}
     canvas = data.get("canvas")
     if canvas is None:
@@ -242,7 +268,10 @@ def save_canvas(dashboard_id):
             return error_response("DASHBOARD_NOT_FOUND", "Dashboard not found", 404)
 
         serialized = serialize_doc(res)
-        return success_response({"dashboard": serialized}, {"dashboard": serialized}, 200)
+        dashboard_doc = serialized.get("dashboard")
+        linked_analyses = serialized.get("linked_analyses", [])
+        legacy = {"dashboard": dashboard_doc, "linked_analyses": linked_analyses}
+        return success_response(dashboard_doc, legacy, 200)
     except ValueError as e:
         msg = str(e)
         if "exist" in msg.lower() or "not found" in msg.lower():
@@ -254,11 +283,13 @@ def save_canvas(dashboard_id):
 
 @dashboard_bp.route("/<dashboard_id>/canvas/data", methods=["GET"])
 @dashboard_bp.route("/<dashboard_id>/data", methods=["GET"])
-def get_canvas_data(dashboard_id):
+def get_canvas_data():
+    """Get dashboard canvas data."""
     context = require_request_context()
     if not context:
         return error_response("UNAUTHORIZED", "Valid bearer token is required", 401)
 
+    dashboard_id = request.view_args["dashboard_id"]
     d_oid = ObjectId(dashboard_id) if ObjectId.is_valid(dashboard_id) else dashboard_id
     dashboard = mongo.db.dashboards.find_one({"_id": d_oid, "is_deleted": False})
     if not dashboard:
@@ -284,11 +315,15 @@ def get_canvas_data(dashboard_id):
 
 
 @dashboard_bp.route("/<dashboard_id>/widgets/<widget_id>/data", methods=["GET"])
-def get_widget_data(dashboard_id, widget_id):
+def get_widget_data():
+    """Get data for a specific widget."""
     context = require_request_context()
     if not context:
         return error_response("UNAUTHORIZED", "Valid bearer token is required", 401)
 
+    dashboard_id = request.view_args["dashboard_id"]
+    widget_id = request.view_args["widget_id"]
+    
     d_oid = ObjectId(dashboard_id) if ObjectId.is_valid(dashboard_id) else dashboard_id
     dashboard = mongo.db.dashboards.find_one({"_id": d_oid, "is_deleted": False})
     if not dashboard:
@@ -324,11 +359,13 @@ def get_widget_data(dashboard_id, widget_id):
 
 
 @dashboard_bp.route("/<dashboard_id>/filter-options", methods=["GET"])
-def get_filter_options(dashboard_id):
+def get_filter_options():
+    """Get filter options for a dashboard widget."""
     context = require_request_context()
     if not context:
         return error_response("UNAUTHORIZED", "Valid bearer token is required", 401)
 
+    dashboard_id = request.view_args["dashboard_id"]
     analysis_id = request.args.get("analysis_id")
     node_id = request.args.get("node_id")
     column = request.args.get("column")
@@ -348,75 +385,52 @@ def get_filter_options(dashboard_id):
 
 
 @dashboard_bp.route("/<dashboard_id>/public-token", methods=["POST"])
-def enable_public_sharing(dashboard_id):
+def enable_public_sharing():
+    """Enable public sharing for a dashboard."""
     context = require_request_context()
     if not context:
         return error_response("UNAUTHORIZED", "Valid bearer token is required", 401)
 
-    d_oid = ObjectId(dashboard_id) if ObjectId.is_valid(dashboard_id) else dashboard_id
-    dashboard = mongo.db.dashboards.find_one({"_id": d_oid, "is_deleted": False})
-    if not dashboard:
-        return error_response("DASHBOARD_NOT_FOUND", "Dashboard not found", 404)
+    dashboard_id = request.view_args["dashboard_id"]
+    try:
+        d_oid, dashboard = _dashboard_lookup(dashboard_id)
+        if not dashboard:
+            return error_response("DASHBOARD_NOT_FOUND", "Dashboard not found", 404)
 
-    token = str(uuid.uuid4())
-    mongo.db.dashboards.update_one(
-        {"_id": d_oid},
-        {
-            "$set": {
-                "is_public": True,
-                "public_token": token,
-                "updated_at": datetime.datetime.utcnow().isoformat(),
-            }
-        },
-    )
-
-    mongo.db.audit_logs.insert_one(
-        {
-            "org_id": dashboard.get("org_id"),
-            "entity_type": "dashboard",
-            "entity_id": d_oid,
-            "action": "dashboard_made_public",
-            "timestamp": datetime.datetime.utcnow().isoformat(),
-        }
-    )
-
-    platform_config = mongo.db.system_config.find_one({"key": "platform_url"})
-    platform_url = platform_config.get("value") if platform_config else request.host_url
-    public_url = f"{platform_url.rstrip('/')}/public/dashboard/{token}"
-
-    payload = {"is_public": True, "public_token": token, "public_url": public_url}
-    return success_response(payload, payload, 200)
+        result = dashboard_service.enable_public_sharing(dashboard_id)
+        return success_response(result, result, 200)
+    except ValueError as e:
+        return error_response("VALIDATION_ERROR", str(e), 400)
+    except Exception as e:
+        return error_response("INTERNAL_ERROR", str(e), 500)
 
 
 @dashboard_bp.route("/<dashboard_id>/public-token", methods=["DELETE"])
-def revoke_public_sharing(dashboard_id):
+def revoke_public_sharing():
+    """Revoke public sharing for a dashboard."""
     context = require_request_context()
     if not context:
         return error_response("UNAUTHORIZED", "Valid bearer token is required", 401)
 
-    d_oid = ObjectId(dashboard_id) if ObjectId.is_valid(dashboard_id) else dashboard_id
-    dashboard = mongo.db.dashboards.find_one({"_id": d_oid, "is_deleted": False})
-    if not dashboard:
-        return error_response("DASHBOARD_NOT_FOUND", "Dashboard not found", 404)
+    dashboard_id = request.view_args["dashboard_id"]
+    try:
+        d_oid, dashboard = _dashboard_lookup(dashboard_id)
+        if not dashboard:
+            return error_response("DASHBOARD_NOT_FOUND", "Dashboard not found", 404)
 
-    mongo.db.dashboards.update_one(
-        {"_id": d_oid},
-        {
-            "$set": {
-                "is_public": False,
-                "public_token": None,
-                "updated_at": datetime.datetime.utcnow().isoformat(),
-            }
-        },
-    )
-
-    return success_response({"message": "Public access revoked"}, {"message": "Public access revoked"}, 200)
+        dashboard_service.revoke_public_sharing(dashboard_id)
+        return success_response({"message": "Public access revoked"}, {"message": "Public access revoked"}, 200)
+    except ValueError as e:
+        return error_response("VALIDATION_ERROR", str(e), 400)
+    except Exception as e:
+        return error_response("INTERNAL_ERROR", str(e), 500)
 
 
 # ----------------- PUBLIC (UNAUTHENTICATED) ACCESS -----------------
 
 
 def strip_bindings_from_canvas(canvas):
+    """Strip sensitive data from canvas for public access."""
     if not canvas:
         return canvas
 
@@ -431,10 +445,10 @@ def strip_bindings_from_canvas(canvas):
 
 
 @public_dashboard_bp.route("/<token>", methods=["GET"])
-def get_public_dashboard(token):
-    dashboard = mongo.db.dashboards.find_one(
-        {"public_token": token, "is_public": True, "is_deleted": False}
-    )
+def get_public_dashboard():
+    """Get public dashboard by token."""
+    token = request.view_args["token"]
+    dashboard = dashboard_service.get_public_dashboard(token)
     if not dashboard:
         return error_response(
             "PUBLIC_TOKEN_NOT_FOUND",
@@ -467,10 +481,10 @@ def get_public_dashboard(token):
 
 
 @public_dashboard_bp.route("/<token>/data", methods=["GET"])
-def get_public_dashboard_data(token):
-    dashboard = mongo.db.dashboards.find_one(
-        {"public_token": token, "is_public": True, "is_deleted": False}
-    )
+def get_public_dashboard_data():
+    """Get public dashboard data by token."""
+    token = request.view_args["token"]
+    dashboard = dashboard_service.get_public_dashboard(token)
     if not dashboard:
         return error_response(
             "PUBLIC_TOKEN_NOT_FOUND",
@@ -509,11 +523,13 @@ def get_public_dashboard_data(token):
 
 
 @dashboard_bp.route("/<dashboard_id>/snapshots", methods=["POST"])
-def create_snapshot(dashboard_id):
+def create_snapshot():
+    """Create a dashboard snapshot."""
     context = require_request_context()
     if not context:
         return error_response("UNAUTHORIZED", "Valid bearer token is required", 401)
 
+    dashboard_id = request.view_args["dashboard_id"]
     try:
         res = dashboard_service.create_snapshot(dashboard_id, context["user_id"], context)
         if not res:
@@ -526,77 +542,110 @@ def create_snapshot(dashboard_id):
 
 
 @dashboard_bp.route("/<dashboard_id>/snapshots", methods=["GET"])
-def list_snapshots(dashboard_id):
+def list_snapshots():
+    """List dashboard snapshots."""
     context = require_request_context()
     if not context:
         return error_response("UNAUTHORIZED", "Valid bearer token is required", 401)
 
+    dashboard_id = request.view_args["dashboard_id"]
     d_oid = ObjectId(dashboard_id) if ObjectId.is_valid(dashboard_id) else dashboard_id
     page = request.args.get("page", 1, type=int)
     per_page = request.args.get("per_page", 20, type=int)
 
-    query = {"dashboard_id": d_oid, "is_deleted": False}
-    total = mongo.db.dashboard_snapshots.count_documents(query)
-
-    snapshots_cursor = mongo.db.dashboard_snapshots.find(query, {"data.widget_data": 0}).sort(
-        "created_at", -1
-    ).skip((page - 1) * per_page).limit(per_page)
-
-    snapshots = []
-    for snap in snapshots_cursor:
-        creator_id = snap.get("created_by")
-        if creator_id:
-            user = mongo.db.users.find_one({"_id": ObjectId(creator_id) if ObjectId.is_valid(creator_id) else creator_id})
-            if user:
-                snap["created_by_user"] = {
-                    "_id": str(user["_id"]),
-                    "full_name": user.get("full_name") or user.get("name") or "Unknown",
-                }
-            else:
-                snap["created_by_user"] = {"_id": str(creator_id), "full_name": "Unknown"}
-        snapshots.append(snap)
-
-    total_pages = (total + per_page - 1) // per_page if total > 0 else 0
-    payload = {
-        "snapshots": serialize_doc(snapshots),
-        "pagination": {
-            "total": total,
-            "page": page,
-            "per_page": per_page,
-            "total_pages": total_pages,
-        },
-    }
-    return success_response(payload, payload, 200)
+    try:
+        snapshots, pagination = dashboard_service.list_snapshots(dashboard_id, page, per_page)
+        payload = {
+            "snapshots": serialize_doc(snapshots),
+            "pagination": pagination,
+        }
+        return success_response(payload, payload, 200)
+    except Exception as e:
+        return error_response("INTERNAL_ERROR", str(e), 500)
 
 
 @dashboard_bp.route("/<dashboard_id>/snapshots/<snapshot_id>", methods=["GET"])
-def get_snapshot(dashboard_id, snapshot_id):
+def get_snapshot():
+    """Get a specific dashboard snapshot."""
     context = require_request_context()
     if not context:
         return error_response("UNAUTHORIZED", "Valid bearer token is required", 401)
 
-    snap_oid = ObjectId(snapshot_id) if ObjectId.is_valid(snapshot_id) else snapshot_id
-    snap = mongo.db.dashboard_snapshots.find_one({"_id": snap_oid, "is_deleted": False})
-    if not snap:
-        return error_response("SNAPSHOT_NOT_FOUND", "Snapshot not found", 404)
+    dashboard_id = request.view_args["dashboard_id"]
+    snapshot_id = request.view_args["snapshot_id"]
+    
+    try:
+        snapshot = dashboard_service.get_snapshot(dashboard_id, snapshot_id)
+        if not snapshot:
+            return error_response("SNAPSHOT_NOT_FOUND", "Snapshot not found", 404)
 
-    payload = serialize_doc(snap)
-    return success_response(payload, payload, 200)
+        payload = serialize_doc(snapshot)
+        return success_response(payload, payload, 200)
+    except ValueError as e:
+        return error_response("VALIDATION_ERROR", str(e), 400)
+    except Exception as e:
+        return error_response("INTERNAL_ERROR", str(e), 500)
 
 
 @dashboard_bp.route("/<dashboard_id>/snapshots/<snapshot_id>", methods=["DELETE"])
-def delete_snapshot(dashboard_id, snapshot_id):
+def delete_snapshot():
+    """Delete a dashboard snapshot."""
     context = require_request_context()
     if not context:
         return error_response("UNAUTHORIZED", "Valid bearer token is required", 401)
 
-    snap_oid = ObjectId(snapshot_id) if ObjectId.is_valid(snapshot_id) else snapshot_id
-    snap = mongo.db.dashboard_snapshots.find_one({"_id": snap_oid, "is_deleted": False})
-    if not snap:
-        return error_response("SNAPSHOT_NOT_FOUND", "Snapshot not found", 404)
+    dashboard_id = request.view_args["dashboard_id"]
+    snapshot_id = request.view_args["snapshot_id"]
+    
+    try:
+        dashboard_service.delete_snapshot(dashboard_id, snapshot_id)
+        return success_response({"message": "Snapshot deleted"}, {"message": "Snapshot deleted"}, 200)
+    except ValueError as e:
+        return error_response("VALIDATION_ERROR", str(e), 400)
+    except Exception as e:
+        return error_response("INTERNAL_ERROR", str(e), 500)
 
-    mongo.db.dashboard_snapshots.update_one(
-        {"_id": snap_oid},
-        {"$set": {"is_deleted": True, "deleted_at": datetime.datetime.utcnow().isoformat()}},
-    )
-    return success_response({"message": "Snapshot deleted"}, {"message": "Snapshot deleted"}, 200)
+
+# ----------------- BACKGROUND TASK ENDPOINTS -----------------
+
+
+@dashboard_bp.route("/<dashboard_id>/refresh", methods=["POST"])
+def refresh_dashboard():
+    """Trigger dashboard data refresh."""
+    context = require_request_context()
+    if not context:
+        return error_response("UNAUTHORIZED", "Valid bearer token is required", 401)
+
+    dashboard_id = request.view_args["dashboard_id"]
+    try:
+        from app.workers.dashboard_tasks import refresh_dashboard_data_task
+        task = refresh_dashboard_data_task.delay(dashboard_id, context)
+        
+        return success_response({
+            "task_id": task.id,
+            "status": "queued",
+            "message": "Dashboard refresh initiated"
+        }, 202)
+    except Exception as e:
+        return error_response("INTERNAL_ERROR", str(e), 500)
+
+
+@dashboard_bp.route("/<dashboard_id>/validate", methods=["POST"])
+def validate_dashboard():
+    """Validate dashboard integrity."""
+    context = require_request_context()
+    if not context:
+        return error_response("UNAUTHORIZED", "Valid bearer token is required", 401)
+
+    dashboard_id = request.view_args["dashboard_id"]
+    try:
+        from app.workers.dashboard_tasks import validate_dashboard_integrity_task
+        task = validate_dashboard_integrity_task.delay(dashboard_id)
+        
+        return success_response({
+            "task_id": task.id,
+            "status": "queued",
+            "message": "Dashboard validation initiated"
+        }, 202)
+    except Exception as e:
+        return error_response("INTERNAL_ERROR", str(e), 500)
